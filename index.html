@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>إرسال موقعي عبر واتساب</title>
+  <title>إرسال موقعي عبر بوت تيليجرام</title>
   <style>
     body { font-family: system-ui, sans-serif; padding: 16px; background:#f7f7f7; }
     .card { max-width: 520px; margin: auto; background:#fff; padding:16px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08); }
     label { display:block; margin:10px 0 6px; font-weight:600; }
     input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
-    button { width:100%; padding:12px; margin-top:14px; background:#25D366; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
-    button:disabled { background:#9bd7b3; cursor:not-allowed; }
+    button { width:100%; padding:12px; margin-top:14px; background:#0088cc; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
+    button:disabled { background:#9bc7e3; cursor:not-allowed; }
     .hint { font-size:13px; color:#666; margin-top:8px; }
     .status { margin-top:10px; font-size:14px; color:#333; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>إرسال موقعك عبر واتساب</h2>
-    <p class="hint">اكتب اسمك ورقمك، ثم اضغط الزر للسماح بتحديد موقعك بدقة. سنفتح واتساب برسالة جاهزة.</p>
+    <h2>إرسال موقعك عبر بوت تيليجرام</h2>
+    <p class="hint">اكتب اسمك ورقمك، ثم اضغط الزر للسماح بتحديد موقعك بدقة. سيتم إرسال البيانات مباشرة للبوت.</p>
 
     <label>اسمك</label>
     <input id="name" placeholder="مثال: آية محمد" />
@@ -31,35 +31,47 @@
   </div>
 
   <script>
-    // رقمك الدولي لاستقبال الرسائل على واتساب (بدون +)
-    const merchantNumberIntl = "963968258533";
+    // ضع التوكن الذي حصلت عليه من BotFather
+    const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
+    // ضع الـ Chat ID الذي حصلت عليه من @userinfobot
+    const chatId = "939054281";
 
     const nameEl = document.getElementById('name');
     const phoneEl = document.getElementById('phone');
     const statusEl = document.getElementById('status');
     const locBtn = document.getElementById('locBtn');
 
-    function encodeText(text) {
-      return encodeURIComponent(text);
-    }
-
     function buildMapsLink(lat, lng) {
       return `https://maps.google.com/?q=${lat},${lng}`;
     }
 
-    function openWhatsAppMessage({ customerName, customerPhone, mapsUrl, accuracy }) {
-      const now = new Date();
-      const timeStr = now.toLocaleString('ar-SY');
-
+    function sendToTelegram({ customerName, customerPhone, mapsUrl, accuracy }) {
       const message =
-        `الاسم: ${customerName}\n` +
-        `الرقم: ${customerPhone}\n` +
-        `رابط موقعي: ${mapsUrl}\n` +
-        (accuracy ? `دقة تحديد الموقع (متر): ${Math.round(accuracy)}\n` : "") +
-        `الوقت: ${timeStr}`;
+        `📦 طلب جديد:\n` +
+        `👤 الاسم: ${customerName}\n` +
+        `📞 الرقم: ${customerPhone}\n` +
+        `📍 الموقع: ${mapsUrl}\n` +
+        (accuracy ? `🎯 دقة: ${Math.round(accuracy)} متر\n` : "") +
+        `⏰ الوقت: ${new Date().toLocaleString('ar-SY')}`;
 
-      const waUrl = `https://wa.me/${merchantNumberIntl}?text=${encodeText(message)}`;
-      window.location.href = waUrl;
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message
+        })
+      })
+      .then(res => {
+        if (res.ok) {
+          statusEl.textContent = "✅ تم إرسال موقعك بنجاح!";
+        } else {
+          statusEl.textContent = "❌ حدث خطأ أثناء الإرسال.";
+        }
+      })
+      .catch(() => {
+        statusEl.textContent = "⚠️ لم نتمكن من الاتصال بالبوت.";
+      });
     }
 
     function validateInputs() {
@@ -88,8 +100,8 @@
         (pos) => {
           const { latitude, longitude, accuracy } = pos.coords;
           const mapsUrl = buildMapsLink(latitude, longitude);
-          statusEl.textContent = "تم تحديد الموقع. نفتح واتساب الآن...";
-          openWhatsAppMessage({
+          statusEl.textContent = "📤 جاري إرسال البيانات للبوت...";
+          sendToTelegram({
             customerName: nameEl.value.trim(),
             customerPhone: phoneEl.value.trim(),
             mapsUrl,
