@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>إرسال موقعي عبر واتساب</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; background:#f7f7f7; }
+    .card { max-width: 520px; margin: auto; background:#fff; padding:16px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08); }
+    label { display:block; margin:10px 0 6px; font-weight:600; }
+    input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    button { width:100%; padding:12px; margin-top:14px; background:#25D366; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
+    button:disabled { background:#9bd7b3; cursor:not-allowed; }
+    .hint { font-size:13px; color:#666; margin-top:8px; }
+    .status { margin-top:10px; font-size:14px; color:#333; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>إرسال موقعك عبر واتساب</h2>
+    <p class="hint">اكتب اسمك ورقمك، ثم اضغط الزر للسماح بتحديد موقعك بدقة. سنفتح واتساب برسالة جاهزة.</p>
+
+    <label>اسمك</label>
+    <input id="name" placeholder="مثال: آية محمد" />
+
+    <label>رقم هاتفك</label>
+    <input id="phone" placeholder="مثال: 093XXXXXXX" />
+
+    <button id="locBtn">تحديد موقعي الآن</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    // رقمك الدولي لاستقبال الرسائل على واتساب (بدون +)
+    const merchantNumberIntl = "963968258533";
+
+    const nameEl = document.getElementById('name');
+    const phoneEl = document.getElementById('phone');
+    const statusEl = document.getElementById('status');
+    const locBtn = document.getElementById('locBtn');
+
+    function encodeText(text) {
+      return encodeURIComponent(text);
+    }
+
+    function buildMapsLink(lat, lng) {
+      return `https://maps.google.com/?q=${lat},${lng}`;
+    }
+
+    function openWhatsAppMessage({ customerName, customerPhone, mapsUrl, accuracy }) {
+      const now = new Date();
+      const timeStr = now.toLocaleString('ar-SY');
+
+      const message =
+        `الاسم: ${customerName}\n` +
+        `الرقم: ${customerPhone}\n` +
+        `رابط موقعي: ${mapsUrl}\n` +
+        (accuracy ? `دقة تحديد الموقع (متر): ${Math.round(accuracy)}\n` : "") +
+        `الوقت: ${timeStr}`;
+
+      const waUrl = `https://wa.me/${merchantNumberIntl}?text=${encodeText(message)}`;
+      window.location.href = waUrl;
+    }
+
+    function validateInputs() {
+      const name = nameEl.value.trim();
+      const phone = phoneEl.value.trim();
+      if (!name) { statusEl.textContent = "رجاءً اكتب اسمك."; return false; }
+      if (!phone) { statusEl.textContent = "رجاءً اكتب رقم هاتفك."; return false; }
+      const digits = phone.replace(/\D/g, "");
+      if (digits.length < 9) { statusEl.textContent = "رقم الهاتف غير مكتمل."; return false; }
+      return true;
+    }
+
+    locBtn.addEventListener('click', () => {
+      statusEl.textContent = "";
+      if (!validateInputs()) return;
+
+      if (!navigator.geolocation) {
+        statusEl.textContent = "متصفحك لا يدعم تحديد الموقع. رجاءً أرسل رابط موقعك من خرائط جوجل.";
+        return;
+      }
+
+      locBtn.disabled = true;
+      statusEl.textContent = "جارٍ تحديد موقعك بدقة...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const mapsUrl = buildMapsLink(latitude, longitude);
+          statusEl.textContent = "تم تحديد الموقع. نفتح واتساب الآن...";
+          openWhatsAppMessage({
+            customerName: nameEl.value.trim(),
+            customerPhone: phoneEl.value.trim(),
+            mapsUrl,
+            accuracy
+          });
+          locBtn.disabled = false;
+        },
+        (err) => {
+          locBtn.disabled = false;
+          switch (err.code) {
+            case err.PERMISSION_DENIED:
+              statusEl.textContent = "تم رفض الإذن. رجاءً اسمح بتحديد الموقع أو أرسل رابط موقعك يدوياً.";
+              break;
+            case err.POSITION_UNAVAILABLE:
+              statusEl.textContent = "تعذّر الحصول على الموقع. جرّب تشغيل GPS أو الواي فاي.";
+              break;
+            case err.TIMEOUT:
+              statusEl.textContent = "انتهى الوقت أثناء تحديد الموقع. أعد المحاولة قرب نافذة أو في مكان مفتوح.";
+              break;
+            default:
+              statusEl.textContent = "حدث خطأ غير متوقع أثناء تحديد الموقع.";
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  </script>
+</body>
+</html>
