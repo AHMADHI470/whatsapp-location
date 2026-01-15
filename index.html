@@ -14,8 +14,6 @@
     button:disabled { background:#9bc7e3; cursor:not-allowed; }
     .hint { font-size:13px; color:#666; margin-top:8px; }
     .status { margin-top:10px; font-size:14px; color:#333; white-space:pre-line; }
-    #deliverBtn { background:#25D366; }
-    #resetBtn { background:#ff9800; }
     #reportBtn { background:#673ab7; }
   </style>
 </head>
@@ -44,8 +42,6 @@
     <textarea id="notes" placeholder="مثال: بدون بصل، اتصل قبل الوصول"></textarea>
 
     <button id="locBtn">تحديد موقعي الآن</button>
-    <button id="deliverBtn">أنا آت لتسليم الطلب 🚚</button>
-    <button id="resetBtn">⏪ إعادة تفعيل وقت</button>
     <button id="reportBtn">📊 عرض تقرير الطلبات</button>
 
     <div class="status" id="status"></div>
@@ -58,8 +54,8 @@
   </audio>
 
   <script>
-    const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatId = "939054281";
+    const token = "ضع التوكن هنا";
+    const chatId = "ضع الـ Chat ID هنا";
     const status = document.getElementById("status");
     const successSound = document.getElementById("successSound");
 
@@ -130,32 +126,7 @@
       });
     });
 
-    // زر واتساب للتسليم
-    document.getElementById("deliverBtn").addEventListener("click", () => {
-      const phone = document.getElementById("phone").value.trim();
-      if (!phone) {
-        status.textContent = "⚠️ أدخل رقم الهاتف أولاً.";
-        return;
-      }
-      const msg = encodeURIComponent("أنا في الطريق لتسليم طلبك 🚚");
-      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
-    });
-
-    // زر إعادة تفعيل وقت
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      const timeSelect = document.getElementById("time");
-      const time = timeSelect.value;
-      if (!time) {
-        status.textContent = "⚠️ اختر وقتًا لإعادة تفعيله.";
-        return;
-      }
-      timeCounts[time] = Math.max(0, timeCounts[time] - 1); 
-      updateTimeOptions();
-      timeSelect.querySelector(`option[value="${time}"]`).disabled = false;
-      status.innerHTML = `<span style='color:orange;font-weight:bold;'>⏪ تم إعادة تفعيل الوقت ${time} بنجاح.</span>`;
-    });
-
-       // زر عرض تقرير الطلبات
+    // زر عرض تقرير الطلبات
     document.getElementById("reportBtn").addEventListener("click", () => {
       let report = "📊 تقرير الطلبات حسب الأوقات:\n\n";
       for (const [time, count] of Object.entries(timeCounts)) {
@@ -167,7 +138,6 @@
         report += `${label}: ${count} طلب\n`;
       }
 
-      // عرض التقرير داخل الصفحة
       status.innerHTML = `<pre style="background:#eee;padding:10px;border-radius:8px;">${report}</pre>`;
 
       // إرسال التقرير إلى البوت تيليجرام أيضًا
