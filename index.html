@@ -8,17 +8,21 @@
     body { font-family: system-ui, sans-serif; padding: 16px; background:#f7f7f7; }
     .card { max-width: 520px; margin: auto; background:#fff; padding:16px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.08); }
     label { display:block; margin:10px 0 6px; font-weight:600; }
-    input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    input, textarea, select { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; }
+    textarea { resize: vertical; min-height:60px; }
     button { width:100%; padding:12px; margin-top:14px; background:#0088cc; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
     button:disabled { background:#9bc7e3; cursor:not-allowed; }
     .hint { font-size:13px; color:#666; margin-top:8px; }
-    .status { margin-top:10px; font-size:14px; color:#333; }
+    .status { margin-top:10px; font-size:14px; color:#333; white-space:pre-line; }
+    #deliverBtn { background:#25D366; }
+    #resetBtn { background:#ff9800; }
+    #reportBtn { background:#673ab7; }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>إرسال موقعك عبر بوت تيليجرام</h2>
-    <p class="hint">اكتب اسمك ورقمك، ثم اضغط الزر للسماح بتحديد موقعك بدقة. سيتم إرسال البيانات مباشرة للبوت.</p>
+    <p class="hint">اكتب اسمك ورقمك وحدد وقت التوصيل بين 11 صباحًا و3 عصرًا، ثم أضف أي ملاحظات خاصة بالطلب.</p>
 
     <label>اسمك</label>
     <input id="name" placeholder="مثال: آية محمد" />
@@ -26,111 +30,153 @@
     <label>رقم هاتفك</label>
     <input id="phone" placeholder="مثال: 093XXXXXXX" />
 
+    <label>وقت التوصيل المطلوب</label>
+    <select id="time">
+      <option value="">اختر وقت التوصيل</option>
+      <option value="11:00">11:00 صباحًا (0)</option>
+      <option value="12:00">12:00 ظهرًا (0)</option>
+      <option value="13:00">1:00 ظهرًا (0)</option>
+      <option value="14:00">2:00 ظهرًا (0)</option>
+      <option value="15:00">3:00 عصرًا (0)</option>
+    </select>
+
+    <label>ملاحظات إضافية</label>
+    <textarea id="notes" placeholder="مثال: بدون بصل، اتصل قبل الوصول"></textarea>
+
     <button id="locBtn">تحديد موقعي الآن</button>
+    <button id="deliverBtn">أنا آت لتسليم الطلب 🚚</button>
+    <button id="resetBtn">⏪ إعادة تفعيل وقت</button>
+    <button id="reportBtn">📊 عرض تقرير الطلبات</button>
+
     <div class="status" id="status"></div>
   </div>
 
+  <!-- ملف صوتي قصير للتنبيه -->
+  <audio id="successSound">
+    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg">
+    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.mp3" type="audio/mpeg">
+  </audio>
+
   <script>
-    // ضع التوكن الذي حصلت عليه من BotFather
-    const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    // ضع الـ Chat ID الذي حصلت عليه من @userinfobot
-    const chatId = "939054281";
+    const token = "ضع التوكن هنا";
+    const chatId = "ضع الـ Chat ID هنا";
+    const status = document.getElementById("status");
+    const successSound = document.getElementById("successSound");
 
-    const nameEl = document.getElementById('name');
-    const phoneEl = document.getElementById('phone');
-    const statusEl = document.getElementById('status');
-    const locBtn = document.getElementById('locBtn');
+    // عداد الطلبات لكل وقت
+    const timeCounts = {
+      "11:00": 0,
+      "12:00": 0,
+      "13:00": 0,
+      "14:00": 0,
+      "15:00": 0
+    };
 
-    function buildMapsLink(lat, lng) {
-      return `https://maps.google.com/?q=${lat},${lng}`;
-    }
-
-    function sendToTelegram({ customerName, customerPhone, mapsUrl, accuracy }) {
-      const message =
-        `📦 طلب جديد:\n` +
-        `👤 الاسم: ${customerName}\n` +
-        `📞 الرقم: ${customerPhone}\n` +
-        `📍 الموقع: ${mapsUrl}\n` +
-        (accuracy ? `🎯 دقة: ${Math.round(accuracy)} متر\n` : "") +
-        `⏰ الوقت: ${new Date().toLocaleString('ar-SY')}`;
-
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message
-        })
-      })
-      .then(res => {
-        if (res.ok) {
-          statusEl.textContent = "✅ تم إرسال موقعك بنجاح!";
-        } else {
-          statusEl.textContent = "❌ حدث خطأ أثناء الإرسال.";
+    function updateTimeOptions() {
+      const timeSelect = document.getElementById("time");
+      for (const opt of timeSelect.options) {
+        if (timeCounts[opt.value] !== undefined) {
+          opt.textContent = opt.value === "11:00" ? `11:00 صباحًا (${timeCounts[opt.value]})` :
+                            opt.value === "12:00" ? `12:00 ظهرًا (${timeCounts[opt.value]})` :
+                            opt.value === "13:00" ? `1:00 ظهرًا (${timeCounts[opt.value]})` :
+                            opt.value === "14:00" ? `2:00 ظهرًا (${timeCounts[opt.value]})` :
+                            opt.value === "15:00" ? `3:00 عصرًا (${timeCounts[opt.value]})` : opt.textContent;
         }
-      })
-      .catch(() => {
-        statusEl.textContent = "⚠️ لم نتمكن من الاتصال بالبوت.";
-      });
+      }
     }
 
-    function validateInputs() {
-      const name = nameEl.value.trim();
-      const phone = phoneEl.value.trim();
-      if (!name) { statusEl.textContent = "رجاءً اكتب اسمك."; return false; }
-      if (!phone) { statusEl.textContent = "رجاءً اكتب رقم هاتفك."; return false; }
-      const digits = phone.replace(/\D/g, "");
-      if (digits.length < 9) { statusEl.textContent = "رقم الهاتف غير مكتمل."; return false; }
-      return true;
-    }
+    // زر إرسال الموقع والبيانات للبوت
+    document.getElementById("locBtn").addEventListener("click", () => {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const timeSelect = document.getElementById("time");
+      const time = timeSelect.value;
+      const notes = document.getElementById("notes").value.trim();
 
-    locBtn.addEventListener('click', () => {
-      statusEl.textContent = "";
-      if (!validateInputs()) return;
-
-      if (!navigator.geolocation) {
-        statusEl.textContent = "متصفحك لا يدعم تحديد الموقع. رجاءً أرسل رابط موقعك من خرائط جوجل.";
+      if (!name || !phone || !time) {
+        status.textContent = "⚠️ يرجى إدخال الاسم والرقم واختيار وقت التوصيل.";
         return;
       }
 
-      locBtn.disabled = true;
-      statusEl.textContent = "جارٍ تحديد موقعك بدقة...";
+      status.textContent = "جارٍ تحديد الموقع...";
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-          const mapsUrl = buildMapsLink(latitude, longitude);
-          statusEl.textContent = "📤 جاري إرسال البيانات للبوت...";
-          sendToTelegram({
-            customerName: nameEl.value.trim(),
-            customerPhone: phoneEl.value.trim(),
-            mapsUrl,
-            accuracy
-          });
-          locBtn.disabled = false;
-        },
-        (err) => {
-          locBtn.disabled = false;
-          switch (err.code) {
-            case err.PERMISSION_DENIED:
-              statusEl.textContent = "تم رفض الإذن. رجاءً اسمح بتحديد الموقع أو أرسل رابط موقعك يدوياً.";
-              break;
-            case err.POSITION_UNAVAILABLE:
-              statusEl.textContent = "تعذّر الحصول على الموقع. جرّب تشغيل GPS أو الواي فاي.";
-              break;
-            case err.TIMEOUT:
-              statusEl.textContent = "انتهى الوقت أثناء تحديد الموقع. أعد المحاولة قرب نافذة أو في مكان مفتوح.";
-              break;
-            default:
-              statusEl.textContent = "حدث خطأ غير متوقع أثناء تحديد الموقع.";
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
-        }
-      );
+        const text = `👤 الاسم: ${name}\n📞 الهاتف: ${phone}\n🕒 وقت التوصيل: ${time}\n📝 ملاحظات: ${notes || "لا توجد"}\n📍 الموقع: https://maps.google.com/?q=${lat},${lon}`;
+
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text })
+        })
+        .then(() => {
+          status.innerHTML = "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح، لا داعي لإرساله مرة أخرى.</span>";
+          alert("✅ تم إرسال الطلب بنجاح!\nلا داعي لإرساله مرة أخرى."); 
+          successSound.play();
+
+          // زيادة العداد وتعطيل الوقت المختار
+          timeCounts[time]++;
+          updateTimeOptions();
+          timeSelect.querySelector(`option[value="${time}"]`).disabled = true;
+
+          // فتح واتساب لتأكيد الطلب للزبون
+          const confirmMsg = encodeURIComponent(`✅ تم استلام طلبك بنجاح!\nوقت التوصيل: ${time}`);
+          window.open(`https://wa.me/${phone}?text=${confirmMsg}`, "_blank");
+        })
+        .catch(() => status.textContent = "❌ حدث خطأ أثناء الإرسال");
+      }, () => {
+        status.textContent = "تعذر الحصول على الموقع.";
+      });
+    });
+
+    // زر واتساب للتسليم
+    document.getElementById("deliverBtn").addEventListener("click", () => {
+      const phone = document.getElementById("phone").value.trim();
+      if (!phone) {
+        status.textContent = "⚠️ أدخل رقم الهاتف أولاً.";
+        return;
+      }
+      const msg = encodeURIComponent("أنا في الطريق لتسليم طلبك 🚚");
+      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+    });
+
+    // زر إعادة تفعيل وقت
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      const timeSelect = document.getElementById("time");
+      const time = timeSelect.value;
+      if (!time) {
+        status.textContent = "⚠️ اختر وقتًا لإعادة تفعيله.";
+        return;
+      }
+      timeCounts[time] = Math.max(0, timeCounts[time] - 1); 
+      updateTimeOptions();
+      timeSelect.querySelector(`option[value="${time}"]`).disabled = false;
+      status.innerHTML = `<span style='color:orange;font-weight:bold;'>⏪ تم إعادة تفعيل الوقت ${time} بنجاح.</span>`;
+    });
+
+       // زر عرض تقرير الطلبات
+    document.getElementById("reportBtn").addEventListener("click", () => {
+      let report = "📊 تقرير الطلبات حسب الأوقات:\n\n";
+      for (const [time, count] of Object.entries(timeCounts)) {
+        const label = time === "11:00" ? "11:00 صباحًا" :
+                      time === "12:00" ? "12:00 ظهرًا" :
+                      time === "13:00" ? "1:00 ظهرًا" :
+                      time === "14:00" ? "2:00 ظهرًا" :
+                      time === "15:00" ? "3:00 عصرًا" : time;
+        report += `${label}: ${count} طلب\n`;
+      }
+
+      // عرض التقرير داخل الصفحة
+      status.innerHTML = `<pre style="background:#eee;padding:10px;border-radius:8px;">${report}</pre>`;
+
+      // إرسال التقرير إلى البوت تيليجرام أيضًا
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: report })
+      })
+      .catch(() => console.log("❌ لم يتم إرسال التقرير للبوت"));
     });
   </script>
 </body>
