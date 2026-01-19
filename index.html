@@ -35,6 +35,7 @@
   <div class="card">
     <h2>خدمة توصيل متجر جولي كيك</h2>
     <p class="welcome">سررنا بكم!</p>
+    <h2>الرجاء تحديد الموقع من نفس المكان التي تريد ين استلام الطلب منه او حدديه يدويا من زر ( تحديد الموقع على الخريطة )</h2>
 
     <label for="name">اسمك</label>
     <input id="name" placeholder="مثال: آية محمد" autocomplete="off"/>
@@ -43,8 +44,7 @@
     <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel"/>
 
     <label for="notes">ملاحظات إضافية</label>
-    <textarea id="notes" placeholder="اذا لديك اي ملاحظة اتركها هنا 
-      الرجاء تحديد الموقع من نفس المكان الذي سيتم استلام الطلب منه "></textarea>
+    <textarea id="notes" placeholder="اكتب ملاحظتك هنا "></textarea>
 
     <button id="locBtn" type="button">تحديد موقعي الآن</button>
     <button id="mapBtn" type="button">حدد موقعك على الخريطة</button>
@@ -66,13 +66,12 @@
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
   <script>
-    // توكن البوت و chatIds المستلمين (أضفت مستخدم ثاني)
+    // توكن البوت و chatIds المستلمين
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"]; // استبدل 123456789 بالـ chatId الجديد
+    const chatIds = ["939054281", "6748885574"]; // تم إضافة المستخدم الثاني هنا
 
     const status = document.getElementById("status");
 
-    // عناصر الصفحة
     const locBtn = document.getElementById("locBtn");
     const mapBtn = document.getElementById("mapBtn");
     const sendFromMapBtn = document.getElementById("sendFromMapBtn");
@@ -83,13 +82,15 @@
     const phoneInput = document.getElementById("phone");
     const notesInput = document.getElementById("notes");
 
-    // متغيرات لخريطة ليقليت
     let map = null, marker = null;
-
-    // لتخزين الموقع المحدد (إحداثيات)
     let selectedLatLng = null;
 
-    // دالة لمقارنة البيانات الحالية مع آخر بيانات أُرسلت (لتجنب الإرسال المتكرر)
+    // حدود محافظة حماة (تقريبية)
+    const hamaBounds = L.latLngBounds(
+      L.latLng(34.8, 36.0),   // جنوب غرب
+      L.latLng(35.8, 37.3)    // شمال شرق
+    );
+
     function isSameData(newData) {
       const lastDataJson = sessionStorage.getItem("lastOrderData");
       if (!lastDataJson) return false;
@@ -97,12 +98,10 @@
       return JSON.stringify(lastData) === JSON.stringify(newData);
     }
 
-    // حفظ بيانات الطلب الأخيرة في sessionStorage
     function saveLastData(data) {
       sessionStorage.setItem("lastOrderData", JSON.stringify(data));
     }
 
-    // إرسال رسالة للبوت تيليجرام لعدد الـ chatIds
     async function sendMessage(text) {
       const requests = chatIds.map(id =>
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -114,7 +113,6 @@
       await Promise.all(requests);
     }
 
-    // دالة لإرسال بيانات الطلب
     async function sendOrder(lat, lon) {
       const name = nameInput.value.trim();
       const phone = phoneInput.value.trim();
@@ -170,22 +168,23 @@
       });
     });
 
-    // زر عرض الخريطة لتحديد الموقع يدويًا
+    // زر عرض الخريطة لتحديد الموقع يدويًا - يظهر الخريطة مباشرة بدون تأخير
     mapBtn.addEventListener("click", () => {
       mapDiv.style.display = "block";
       sendFromMapBtn.style.display = "inline-block";
       cancelMapBtn.style.display = "inline-block";
 
       if (!map) {
-        // إنشاء الخريطة بعد إظهار div (عشان لا تكون مخفية)
-        map = L.map("map").setView([24.7136, 46.6753], 10);
+        map = L.map("map", {
+          maxBounds: hamaBounds,
+          maxBoundsViscosity: 1.0,
+        }).setView([35.1318, 36.7532], 10);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // إضافة مربع البحث باستخدام Leaflet Control Geocoder
         if (typeof L.Control.Geocoder !== "undefined") {
           const geocoder = L.Control.geocoder({
             defaultMarkGeocode: false
@@ -210,7 +209,6 @@
           });
         }
 
-        // تحديد الموقع بالنقر على الخريطة
         map.on("click", function(e) {
           if (marker) {
             marker.setLatLng(e.latlng);
@@ -222,11 +220,10 @@
         });
 
       } else {
-        map.invalidateSize(); // مهم لتحديث العرض إذا كان مخفي قبلًا
+        map.invalidateSize();
       }
     });
 
-    // زر إرسال من الخريطة
     sendFromMapBtn.addEventListener("click", () => {
       if (!selectedLatLng) {
         alert("يرجى اختيار موقع على الخريطة أولاً.");
@@ -235,7 +232,6 @@
       sendOrder(selectedLatLng.lat, selectedLatLng.lng);
     });
 
-    // زر إلغاء تحديد الموقع على الخريطة
     cancelMapBtn.addEventListener("click", () => {
       mapDiv.style.display = "none";
       sendFromMapBtn.style.display = "none";
