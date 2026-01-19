@@ -28,6 +28,8 @@
     integrity="sha256-sA+e7XbAwssvy08/mtmP64PLmOLwFJYo0xSt59v+0uY="
     crossorigin=""
   />
+  <!-- Leaflet Control Geocoder CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 </head>
 <body>
   <div class="card">
@@ -41,7 +43,7 @@
     <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel"/>
 
     <label for="notes">ملاحظات إضافية</label>
-    <textarea id="notes" placeholder="اذا كان هناك ملاحظات اكتبها هنا "></textarea>
+    <textarea id="notes" placeholder="مثال: بدون بصل، اتصل قبل الوصول"></textarea>
 
     <button id="locBtn" type="button">تحديد موقعي الآن</button>
     <button id="mapBtn" type="button">حدد موقعك على الخريطة</button>
@@ -59,6 +61,8 @@
     integrity="sha256-p7rR2yUQqUa2fpo+q0g9HQ5yEBO9j7Jkyf6XB7LDtwE="
     crossorigin=""
   ></script>
+  <!-- Leaflet Control Geocoder JS -->
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
   <script>
     // توكن البوت و chatIds المستلمين (أضفت مستخدم ثاني)
@@ -79,7 +83,7 @@
     const notesInput = document.getElementById("notes");
 
     // متغيرات لخريطة ليقليت
-    let map, marker;
+    let map = null, marker = null;
 
     // لتخزين الموقع المحدد (إحداثيات)
     let selectedLatLng = null;
@@ -167,29 +171,45 @@
 
     // زر عرض الخريطة لتحديد الموقع يدويًا
     mapBtn.addEventListener("click", () => {
+      mapDiv.style.display = "block";
+      sendFromMapBtn.style.display = "inline-block";
+      cancelMapBtn.style.display = "inline-block";
+
       if (!map) {
-        // إنشاء الخريطة لأول مرة
-        mapDiv.style.display = "block";
-        sendFromMapBtn.style.display = "inline-block";
-        cancelMapBtn.style.display = "inline-block";
+        // إنشاء الخريطة بعد إظهار div (عشان لا تكون مخفية)
+        map = L.map("map").setView([24.7136, 46.6753], 10);
 
-        map = L.map("map").setView([24.7136, 46.6753], 10); // مركز الرياض كمثال
-
-        // إضافة طبقة OpenStreetMap
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // إضافة مربع بحث بسيط باستخدام Nominatim
-        const searchControl = L.Control.geocoder ? L.Control.geocoder({
-          defaultMarkGeocode: false
-        }) : null;
+        // إضافة مربع البحث باستخدام Leaflet Control Geocoder
+        if (typeof L.Control.Geocoder !== "undefined") {
+          const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false
+          }).addTo(map);
 
-        // إضافة مكتبة geocoder إذا كانت متاحة (بما أن النسخة الرسمية Leaflet لا تحتوي عليها، نستثنيها)
-        // هنا لن نستخدم بحث معقد للحفاظ على البساطة
+          geocoder.on('markgeocode', function(e) {
+            const bbox = e.geocode.bbox;
+            const poly = L.polygon([
+              bbox.getSouthEast(),
+              bbox.getNorthEast(),
+              bbox.getNorthWest(),
+              bbox.getSouthWest()
+            ]).addTo(map);
+            map.fitBounds(poly.getBounds());
+            if (marker) {
+              marker.setLatLng(e.geocode.center);
+            } else {
+              marker = L.marker(e.geocode.center).addTo(map);
+            }
+            selectedLatLng = e.geocode.center;
+            status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
+          });
+        }
 
-        // اختيار الموقع بالنقر على الخريطة
+        // تحديد الموقع بالنقر على الخريطة
         map.on("click", function(e) {
           if (marker) {
             marker.setLatLng(e.latlng);
@@ -199,11 +219,9 @@
           selectedLatLng = e.latlng;
           status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
         });
+
       } else {
-        // إذا الخريطة مفتوحة، نعرضها فقط
-        mapDiv.style.display = "block";
-        sendFromMapBtn.style.display = "inline-block";
-        cancelMapBtn.style.display = "inline-block";
+        map.invalidateSize(); // مهم لتحديث العرض إذا كان مخفي قبلًا
       }
     });
 
