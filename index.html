@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>خدمة توصيل متجر جولي كيك</title>
+
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -18,6 +19,9 @@
       border-radius: 12px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     }
+    h2 {
+      text-align: center;
+    }
     label {
       display: block;
       margin: 10px 0 6px;
@@ -30,6 +34,7 @@
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 8px;
+      font-size: 15px;
     }
     textarea {
       resize: vertical;
@@ -46,36 +51,28 @@
       font-size: 16px;
       cursor: pointer;
     }
-    button:disabled {
-      background: #9bc7e3;
-      cursor: not-allowed;
-    }
-    .hint {
-      font-size: 13px;
-      color: #666;
-      margin-top: 8px;
+    #reportBtn {
+      background: #673ab7;
     }
     .status {
       margin-top: 10px;
       font-size: 14px;
       color: #333;
       white-space: pre-line;
-    }
-    #reportBtn {
-      background: #673ab7;
+      min-height: 32px;
     }
   </style>
 </head>
+
 <body>
   <div class="card">
     <h2>خدمة توصيل متجر جولي كيك</h2>
-    <p class="hint">اكتب اسمك ورقمك وحدد وقت التوصيل بين 11 صباحًا و3 عصرًا، ثم أضف أي ملاحظات خاصة بالطلب.</p>
 
     <label>اسمك</label>
-    <input id="name" placeholder="مثال: آية محمد" />
+    <input id="name" placeholder="مثال: آية محمد" autocomplete="off" />
 
     <label>رقم هاتفك</label>
-    <input id="phone" placeholder="مثال: 093XXXXXXX" />
+    <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" />
 
     <label>وقت التوصيل المطلوب</label>
     <select id="time">
@@ -100,7 +97,6 @@
     <div class="status" id="status"></div>
   </div>
 
-  <!-- ملف صوتي قصير للتنبيه -->
   <audio id="successSound">
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg" />
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.mp3" type="audio/mpeg" />
@@ -108,12 +104,11 @@
 
   <script>
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"]; // المستخدمين
+    const chatIds = ["939054281", "6748885574"];
 
     const status = document.getElementById("status");
     const successSound = document.getElementById("successSound");
 
-    // عداد الطلبات لكل وقت
     const timeCounts = {
       "11:00": 0,
       "11:30": 0,
@@ -128,103 +123,132 @@
 
     function updateTimeOptions() {
       const timeSelect = document.getElementById("time");
+      const labels = {
+        "11:00": "11:00 صباحًا",
+        "11:30": "11:30 صباحًا",
+        "12:00": "12:00 ظهرًا",
+        "12:30": "12:30 ظهرًا",
+        "13:00": "1:00 ظهرًا",
+        "13:30": "1:30 ظهرًا",
+        "14:00": "2:00 ظهرًا",
+        "14:30": "2:30 ظهرًا",
+        "15:00": "3:00 عصرًا"
+      };
+
       for (const opt of timeSelect.options) {
         if (timeCounts[opt.value] !== undefined) {
-          const labels = {
-            "11:00": "11:00 صباحًا",
-            "11:30": "11:30 صباحًا",
-            "12:00": "12:00 ظهرًا",
-            "12:30": "12:30 ظهرًا",
-            "13:00": "1:00 ظهرًا",
-            "13:30": "1:30 ظهرًا",
-            "14:00": "2:00 ظهرًا",
-            "14:30": "2:30 ظهرًا",
-            "15:00": "3:00 عصرًا"
-          };
           opt.textContent = `${labels[opt.value]} (${timeCounts[opt.value]})`;
         }
       }
     }
 
-    // زر إرسال الموقع والبيانات للبوت
+    function getDataHash(data) {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    }
+
+    function sendToTelegram(text) {
+      return Promise.all(
+        chatIds.map(id =>
+          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: id,
+              text: text,
+              parse_mode: "HTML"
+            })
+          })
+        )
+      );
+    }
+
     document.getElementById("locBtn").addEventListener("click", () => {
       const name = document.getElementById("name").value.trim();
       const phone = document.getElementById("phone").value.trim();
-      const timeSelect = document.getElementById("time");
-      const time = timeSelect.value;
+      const time = document.getElementById("time").value;
       const notes = document.getElementById("notes").value.trim();
 
       if (!name || !phone || !time) {
-        status.textContent = "⚠️ يرجى إدخال الاسم والرقم واختيار وقت التوصيل.";
+        status.textContent = "⚠️ يرجى إدخال الاسم ورقم الهاتف واختيار وقت التوصيل.";
         return;
       }
 
       status.textContent = "جارٍ تحديد الموقع...";
+
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
+        pos => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
 
-          const text = `👤 الاسم: ${name}\n📞 الهاتف: ${phone}\n🕒 وقت التوصيل: ${time}\n📝 ملاحظات: ${
-            notes || "لا توجد"
-          }\n📍 الموقع: https://maps.google.com/?q=${lat},${lon}`;
+          const data = { name, phone, time, notes, lat, lon };
+          const newHash = getDataHash(data);
+          const lastHash = localStorage.getItem("lastOrderHash");
 
-          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: chatId, text }),
-          })
+          if (newHash === lastHash) {
+            alert("⚠️ لقد أرسلت نفس الطلب مسبقًا. غيّر أي معلومة ثم أعد الإرسال.");
+            return;
+          }
+
+          const text =
+            `📦 <b>طلب جديد - متجر جولي كيك</b>\n\n` +
+            `👤 <b>الاسم:</b> ${name}\n` +
+            `📞 <b>الهاتف:</b> ${phone}\n` +
+            `🕒 <b>وقت التوصيل:</b> ${time}\n` +
+            `📝 <b>ملاحظات:</b> ${notes || "لا توجد"}\n\n` +
+            `📍 <b>الموقع:</b>\n` +
+            `<a href="https://maps.google.com/?q=${lat},${lon}">افتح الموقع على الخريطة</a>`;
+
+          sendToTelegram(text)
             .then(() => {
+              localStorage.setItem("lastOrderHash", newHash);
+
               status.innerHTML =
-                "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح، لا داعي لإرساله مرة أخرى.</span>";
-              alert("✅ تم إرسال الطلب بنجاح!\nلا داعي لإرساله مرة أخرى.");
+                "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح</span>";
+
               successSound.play();
 
-              // زيادة العداد وتعطيل الوقت المختار
               timeCounts[time]++;
               updateTimeOptions();
-              timeSelect.querySelector(`option[value="${time}"]`).disabled = true;
+              document.querySelector(`option[value="${time}"]`).disabled = true;
 
-              // فتح واتساب لتأكيد الطلب للزبون
               const confirmMsg = encodeURIComponent(
                 `✅ تم استلام طلبك بنجاح!\nوقت التوصيل: ${time}`
               );
               window.open(`https://wa.me/${phone}?text=${confirmMsg}`, "_blank");
             })
-            .catch(() => (status.textContent = "❌ حدث خطأ أثناء الإرسال"));
+            .catch(() => {
+              status.textContent = "❌ حدث خطأ أثناء الإرسال";
+            });
         },
         () => {
-          status.textContent = "تعذر الحصول على الموقع.";
+          status.textContent = "❌ تعذر الحصول على الموقع";
         }
       );
     });
 
-    // زر عرض تقرير الطلبات
     document.getElementById("reportBtn").addEventListener("click", () => {
-      let report = "📊 تقرير الطلبات حسب الأوقات:\n\n";
+      let report = "📊 <b>تقرير الطلبات حسب الأوقات</b>\n\n";
+      const labels = {
+        "11:00": "11:00 صباحًا",
+        "11:30": "11:30 صباحًا",
+        "12:00": "12:00 ظهرًا",
+        "12:30": "12:30 ظهرًا",
+        "13:00": "1:00 ظهرًا",
+        "13:30": "1:30 ظهرًا",
+        "14:00": "2:00 ظهرًا",
+        "14:30": "2:30 ظهرًا",
+        "15:00": "3:00 عصرًا"
+      };
+
       for (const [time, count] of Object.entries(timeCounts)) {
-        const labels = {
-          "11:00": "11:00 صباحًا",
-          "11:30": "11:30 صباحًا",
-          "12:00": "12:00 ظهرًا",
-          "12:30": "12:30 ظهرًا",
-          "13:00": "1:00 ظهرًا",
-          "13:30": "1:30 ظهرًا",
-          "14:00": "2:00 ظهرًا",
-          "14:30": "2:30 ظهرًا",
-          "15:00": "3:00 عصرًا",
-        };
-        report += `${labels[time]}: ${count} طلب\n`;
+        report += `🕒 <b>${labels[time]}:</b> ${count} طلب\n`;
       }
 
       status.innerHTML = `<pre style="background:#eee;padding:10px;border-radius:8px;">${report}</pre>`;
 
-      // إرسال التقرير إلى البوت تيليجرام أيضًا
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text: report }),
-      }).catch(() => console.log("❌ لم يتم إرسال التقرير للبوت"));
+      sendToTelegram(report).catch(() => {
+        console.log("لم يتم إرسال التقرير للبوت");
+      });
     });
   </script>
 </body>
