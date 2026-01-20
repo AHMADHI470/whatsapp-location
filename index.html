@@ -110,8 +110,16 @@
       await Promise.all(requests);
     }
 
+    // متغير لمنع الإرسال المتكرر خلال 60 ثانية
+    let canSend = true;
+
     // دالة لإرسال بيانات الطلب
     async function sendOrder(lat, lon) {
+      if (!canSend) {
+        status.textContent = "⚠️ يرجى الانتظار دقيقة قبل إرسال الطلب مرة أخرى.";
+        return;
+      }
+
       const name = nameInput.value.trim();
       const phone = phoneInput.value.trim();
       const notes = notesInput.value.trim() || "لا توجد";
@@ -134,6 +142,8 @@
       }
 
       status.textContent = "جاري إرسال الطلب...";
+      
+      canSend = false; // منع الإرسال مؤقتًا
 
       const message = 
         `👤 الاسم: ${name}\n` +
@@ -148,6 +158,12 @@
       } catch {
         status.textContent = "❌ حدث خطأ أثناء الإرسال.";
       }
+
+      // إعادة السماح بالإرسال بعد 60 ثانية
+      setTimeout(() => {
+        canSend = true;
+        status.textContent = "";
+      }, 60000);
     }
 
     // زر تحديد الموقع الجغرافي مباشر
@@ -181,14 +197,6 @@
           maxZoom: 19,
           attribution: '&copy; OpenStreetMap'
         }).addTo(map);
-
-        // إضافة مربع بحث بسيط باستخدام Nominatim
-        const searchControl = L.Control.geocoder ? L.Control.geocoder({
-          defaultMarkGeocode: false
-        }) : null;
-
-        // إضافة مكتبة geocoder إذا كانت متاحة (بما أن النسخة الرسمية Leaflet لا تحتوي عليها، نستثنيها)
-        // هنا لن نستخدم بحث معقد للحفاظ على البساطة
 
         // اختيار الموقع بالنقر على الخريطة
         map.on("click", function(e) {
