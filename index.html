@@ -14,28 +14,14 @@
     textarea { resize: vertical; min-height:60px; }
     button { cursor:pointer; color:#fff; border:none; margin-top:14px; border-radius:10px; }
     #locBtn { background:#0088cc; }
-    #mapBtn { background:#673ab7; }
-    #sendFromMapBtn { background:#28a745; margin-top:8px; display:none; }
-    #cancelMapBtn { background:#d33; margin-top:8px; display:none; }
     .status { margin-top:10px; font-size:14px; color:#333; white-space: pre-line; min-height: 36px; }
-    #map { height: 300px; border-radius: 12px; margin-top: 10px; display: none; }
   </style>
-
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
-    integrity="sha256-sA+e7XbAwssvy08/mtmP64PLmOLwFJYo0xSt59v+0uY="
-    crossorigin=""
-  />
-  <!-- Leaflet Control Geocoder CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 </head>
 <body>
   <div class="card">
     <h2>خدمة توصيل متجر جولي كيك</h2>
     <p class="welcome">سررنا بكم!</p>
-    <h5>الرجاء تحديد الموقع من نفس المكان التي تريد استلام الطلب منه أو حدده يدويا من زر (تحديد الموقع على الخريطة)</h5>
+    <h5>الرجاء تحديد الموقع من نفس المكان التي تريد استلام الطلب منه عبر زر (تحديد موقعي الآن)</h5>
 
     <label for="name">اسمك</label>
     <input id="name" placeholder="مثال: آية محمد" autocomplete="off" />
@@ -47,48 +33,20 @@
     <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
 
     <button id="locBtn" type="button">تحديد موقعي الآن</button>
-    <button id="mapBtn" type="button">حدد موقعك على الخريطة</button>
-
-    <div id="map"></div>
-    <button id="sendFromMapBtn" type="button">إرسال الموقع من الخريطة</button>
-    <button id="cancelMapBtn" type="button">إلغاء تحديد الموقع على الخريطة</button>
 
     <div class="status" id="status"></div>
   </div>
 
-  <!-- Leaflet JS -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
-    integrity="sha256-p7rR2yUQqUa2fpo+q0g9HQ5yEBO9j7Jkyf6XB7LDtwE="
-    crossorigin=""
-  ></script>
-  <!-- Leaflet Control Geocoder JS -->
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
   <script>
+    // توكن البوت و chatIds المستلمين
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"];
+    const chatIds = ["939054281", "6748885574"]; // المستخدمين
 
     const status = document.getElementById("status");
     const locBtn = document.getElementById("locBtn");
-    const mapBtn = document.getElementById("mapBtn");
-    const sendFromMapBtn = document.getElementById("sendFromMapBtn");
-    const cancelMapBtn = document.getElementById("cancelMapBtn");
-    const mapDiv = document.getElementById("map");
-
     const nameInput = document.getElementById("name");
     const phoneInput = document.getElementById("phone");
     const notesInput = document.getElementById("notes");
-
-    let map = null;
-    let marker = null;
-    let selectedLatLng = null;
-
-    // حدود محافظة حماة (تقريبية)
-    const hamaBounds = L.latLngBounds(
-      L.latLng(34.8, 36.0),   // جنوب غرب
-      L.latLng(35.8, 37.3)    // شمال شرق
-    );
 
     function isSameData(newData) {
       const lastDataJson = sessionStorage.getItem("lastOrderData");
@@ -151,7 +109,6 @@
       }
     }
 
-    // زر تحديد الموقع الجغرافي مباشر
     locBtn.addEventListener("click", () => {
       if (!navigator.geolocation) {
         status.textContent = "⚠️ ميزة تحديد الموقع غير مدعومة في متصفحك.";
@@ -165,81 +122,6 @@
       }, err => {
         status.textContent = "❌ تعذر الحصول على الموقع.";
       });
-    });
-
-    // زر عرض الخريطة لتحديد الموقع يدويًا
-    mapBtn.addEventListener("click", () => {
-      mapDiv.style.display = "block";
-      sendFromMapBtn.style.display = "inline-block";
-      cancelMapBtn.style.display = "inline-block";
-
-      if (!map) {
-        map = L.map("map", {
-          maxBounds: hamaBounds,
-          maxBoundsViscosity: 1.0,
-        }).setView([35.1318, 36.7532], 10);
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
-
-        const geocoder = L.Control.geocoder({
-          defaultMarkGeocode: false,
-          placeholder: "ابحث عن موقعك هنا..."
-        }).addTo(map);
-
-        geocoder.on('markgeocode', function(e) {
-          const bbox = e.geocode.bbox;
-          const poly = L.polygon([
-            bbox.getSouthEast(),
-            bbox.getNorthEast(),
-            bbox.getNorthWest(),
-            bbox.getSouthWest()
-          ]).addTo(map);
-          map.fitBounds(poly.getBounds());
-          if (marker) {
-            marker.setLatLng(e.geocode.center);
-          } else {
-            marker = L.marker(e.geocode.center).addTo(map);
-          }
-          selectedLatLng = e.geocode.center;
-          status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
-        });
-
-        map.on("click", function(e) {
-          if (marker) {
-            marker.setLatLng(e.latlng);
-          } else {
-            marker = L.marker(e.latlng).addTo(map);
-          }
-          selectedLatLng = e.latlng;
-          status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
-        });
-
-      } else {
-        map.invalidateSize();
-      }
-    });
-
-    sendFromMapBtn.addEventListener("click", () => {
-      if (!selectedLatLng) {
-        alert("يرجى اختيار موقع على الخريطة أولاً.");
-        return;
-      }
-      sendOrder(selectedLatLng.lat, selectedLatLng.lng);
-    });
-
-    cancelMapBtn.addEventListener("click", () => {
-      mapDiv.style.display = "none";
-      sendFromMapBtn.style.display = "none";
-      cancelMapBtn.style.display = "none";
-      status.textContent = "";
-      if (marker) {
-        map.removeLayer(marker);
-        marker = null;
-      }
-      selectedLatLng = null;
     });
   </script>
 </body>
