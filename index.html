@@ -10,44 +10,82 @@
     h2 { text-align: center; margin-bottom: 8px; }
     p.welcome { text-align: center; font-weight: 600; margin-bottom: 20px; color: #444; }
     label { display:block; margin:10px 0 6px; font-weight:600; }
-    input, textarea, button { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size: 16px; }
+    input, textarea, select, button { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size: 16px; }
     textarea { resize: vertical; min-height:60px; }
     button { cursor:pointer; color:#fff; border:none; margin-top:14px; border-radius:10px; }
     #locBtn { background:#0088cc; }
+    #mapBtn { background:#673ab7; }
+    #sendFromMapBtn { background:#28a745; margin-top:8px; display:none; }
+    #cancelMapBtn { background:#d33; margin-top:8px; display:none; }
     .status { margin-top:10px; font-size:14px; color:#333; white-space: pre-line; min-height: 36px; }
+    #map { height: 300px; border-radius: 12px; margin-top: 10px; display: none; }
   </style>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+    integrity="sha256-sA+e7XbAwssvy08/mtmP64PLmOLwFJYo0xSt59v+0uY="
+    crossorigin=""
+  />
 </head>
 <body>
   <div class="card">
     <h2>خدمة توصيل متجر جولي كيك</h2>
     <p class="welcome">سررنا بكم!</p>
-    <h5>الرجاء تحديد الموقع من نفس المكان التي تريد استلام الطلب منه عبر زر (تحديد موقعي الآن)</h5>
+    <h5> الرجاء تحديد الموقع من نفس المكان الذي تريدين وصول الطلب اليه و الا اكتبي العنوان في صندوق الملاحظات </h5>
 
     <label for="name">اسمك</label>
-    <input id="name" placeholder="مثال: آية محمد" autocomplete="off" />
+    <input id="name" placeholder="مثال: آية محمد" autocomplete="off"/>
 
     <label for="phone">رقم هاتفك</label>
-    <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel" />
+    <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel"/>
 
     <label for="notes">ملاحظات إضافية</label>
-    <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
+    <textarea id="notes" placeholder="مثال: بدون بصل، اتصل قبل الوصول"></textarea>
 
     <button id="locBtn" type="button">تحديد موقعي الآن</button>
+    <button id="mapBtn" type="button">حدد موقعك على الخريطة</button>
+
+    <div id="map"></div>
+    <button id="sendFromMapBtn" type="button">إرسال الموقع من الخريطة</button>
+    <button id="cancelMapBtn" type="button">إلغاء تحديد الموقع على الخريطة</button>
 
     <div class="status" id="status"></div>
   </div>
 
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+    integrity="sha256-p7rR2yUQqUa2fpo+q0g9HQ5yEBO9j7Jkyf6XB7LDtwE="
+    crossorigin=""
+  ></script>
+
   <script>
-    // توكن البوت و chatIds المستلمين
+    // توكن البوت و chatIds المستلمين (أضفت مستخدم ثاني)
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"]; // المستخدمين
+    const chatIds = ["939054281", "6748885574"]; // استبدل 123456789 بالـ chatId الجديد
 
     const status = document.getElementById("status");
+
+    // عناصر الصفحة
     const locBtn = document.getElementById("locBtn");
+    const mapBtn = document.getElementById("mapBtn");
+    const sendFromMapBtn = document.getElementById("sendFromMapBtn");
+    const cancelMapBtn = document.getElementById("cancelMapBtn");
+    const mapDiv = document.getElementById("map");
+
     const nameInput = document.getElementById("name");
     const phoneInput = document.getElementById("phone");
     const notesInput = document.getElementById("notes");
 
+    // متغيرات لخريطة ليقليت
+    let map, marker;
+
+    // لتخزين الموقع المحدد (إحداثيات)
+    let selectedLatLng = null;
+
+    // دالة لمقارنة البيانات الحالية مع آخر بيانات أُرسلت (لتجنب الإرسال المتكرر)
     function isSameData(newData) {
       const lastDataJson = sessionStorage.getItem("lastOrderData");
       if (!lastDataJson) return false;
@@ -55,10 +93,12 @@
       return JSON.stringify(lastData) === JSON.stringify(newData);
     }
 
+    // حفظ بيانات الطلب الأخيرة في sessionStorage
     function saveLastData(data) {
       sessionStorage.setItem("lastOrderData", JSON.stringify(data));
     }
 
+    // إرسال رسالة للبوت تيليجرام لعدد الـ chatIds
     async function sendMessage(text) {
       const requests = chatIds.map(id =>
         fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -70,6 +110,7 @@
       await Promise.all(requests);
     }
 
+    // دالة لإرسال بيانات الطلب
     async function sendOrder(lat, lon) {
       const name = nameInput.value.trim();
       const phone = phoneInput.value.trim();
@@ -94,7 +135,7 @@
 
       status.textContent = "جاري إرسال الطلب...";
 
-      const message =
+      const message = 
         `👤 الاسم: ${name}\n` +
         `📞 الهاتف: ${phone}\n` +
         `📝 ملاحظات: ${notes}\n` +
@@ -109,6 +150,7 @@
       }
     }
 
+    // زر تحديد الموقع الجغرافي مباشر
     locBtn.addEventListener("click", () => {
       if (!navigator.geolocation) {
         status.textContent = "⚠️ ميزة تحديد الموقع غير مدعومة في متصفحك.";
@@ -122,6 +164,70 @@
       }, err => {
         status.textContent = "❌ تعذر الحصول على الموقع.";
       });
+    });
+
+    // زر عرض الخريطة لتحديد الموقع يدويًا
+    mapBtn.addEventListener("click", () => {
+      if (!map) {
+        // إنشاء الخريطة لأول مرة
+        mapDiv.style.display = "block";
+        sendFromMapBtn.style.display = "inline-block";
+        cancelMapBtn.style.display = "inline-block";
+
+        map = L.map("map").setView([24.7136, 46.6753], 10); // مركز الرياض كمثال
+
+        // إضافة طبقة OpenStreetMap
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // إضافة مربع بحث بسيط باستخدام Nominatim
+        const searchControl = L.Control.geocoder ? L.Control.geocoder({
+          defaultMarkGeocode: false
+        }) : null;
+
+        // إضافة مكتبة geocoder إذا كانت متاحة (بما أن النسخة الرسمية Leaflet لا تحتوي عليها، نستثنيها)
+        // هنا لن نستخدم بحث معقد للحفاظ على البساطة
+
+        // اختيار الموقع بالنقر على الخريطة
+        map.on("click", function(e) {
+          if (marker) {
+            marker.setLatLng(e.latlng);
+          } else {
+            marker = L.marker(e.latlng).addTo(map);
+          }
+          selectedLatLng = e.latlng;
+          status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
+        });
+      } else {
+        // إذا الخريطة مفتوحة، نعرضها فقط
+        mapDiv.style.display = "block";
+        sendFromMapBtn.style.display = "inline-block";
+        cancelMapBtn.style.display = "inline-block";
+      }
+    });
+
+    // زر إرسال من الخريطة
+    sendFromMapBtn.addEventListener("click", () => {
+      if (!selectedLatLng) {
+        alert("يرجى اختيار موقع على الخريطة أولاً.");
+        return;
+      }
+      sendOrder(selectedLatLng.lat, selectedLatLng.lng);
+    });
+
+    // زر إلغاء تحديد الموقع على الخريطة
+    cancelMapBtn.addEventListener("click", () => {
+      mapDiv.style.display = "none";
+      sendFromMapBtn.style.display = "none";
+      cancelMapBtn.style.display = "none";
+      status.textContent = "";
+      if (marker) {
+        map.removeLayer(marker);
+        marker = null;
+      }
+      selectedLatLng = null;
     });
   </script>
 </body>
