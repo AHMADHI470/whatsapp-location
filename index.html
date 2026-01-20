@@ -10,7 +10,7 @@
     h2 { text-align: center; margin-bottom: 8px; }
     p.welcome { text-align: center; font-weight: 600; margin-bottom: 20px; color: #444; }
     label { display:block; margin:10px 0 6px; font-weight:600; }
-    input, textarea, select, button { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size: 16px; }
+    input, textarea, button { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size: 16px; }
     textarea { resize: vertical; min-height:60px; }
     button { cursor:pointer; color:#fff; border:none; margin-top:14px; border-radius:10px; }
     #locBtn { background:#0088cc; }
@@ -35,16 +35,16 @@
   <div class="card">
     <h2>خدمة توصيل متجر جولي كيك</h2>
     <p class="welcome">سررنا بكم!</p>
-    <h5>الرجاء تحديد الموقع من نفس المكان التي تريدين استلام الطلب منه او حدديه يدويا من زر (تحديد الموقع على الخريطة)</h5>
+    <h5>الرجاء تحديد الموقع من نفس المكان التي تريد استلام الطلب منه أو حدده يدويا من زر (تحديد الموقع على الخريطة)</h5>
 
     <label for="name">اسمك</label>
-    <input id="name" placeholder="مثال: آية محمد" autocomplete="off"/>
+    <input id="name" placeholder="مثال: آية محمد" autocomplete="off" />
 
     <label for="phone">رقم هاتفك</label>
-    <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel"/>
+    <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" inputmode="tel" />
 
     <label for="notes">ملاحظات إضافية</label>
-    <textarea id="notes" placeholder="اكتب ملاحظتك هنا "></textarea>
+    <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
 
     <button id="locBtn" type="button">تحديد موقعي الآن</button>
     <button id="mapBtn" type="button">حدد موقعك على الخريطة</button>
@@ -66,12 +66,10 @@
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
   <script>
-    // توكن البوت و chatIds المستلمين
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"]; // تم إضافة المستخدم الثاني هنا
+    const chatIds = ["939054281", "6748885574"];
 
     const status = document.getElementById("status");
-
     const locBtn = document.getElementById("locBtn");
     const mapBtn = document.getElementById("mapBtn");
     const sendFromMapBtn = document.getElementById("sendFromMapBtn");
@@ -82,7 +80,7 @@
     const phoneInput = document.getElementById("phone");
     const notesInput = document.getElementById("notes");
 
-    let map = null, marker = null;
+    let map, marker;
     let selectedLatLng = null;
 
     // حدود محافظة حماة (تقريبية)
@@ -137,7 +135,7 @@
 
       status.textContent = "جاري إرسال الطلب...";
 
-      const message = 
+      const message =
         `👤 الاسم: ${name}\n` +
         `📞 الهاتف: ${phone}\n` +
         `📝 ملاحظات: ${notes}\n` +
@@ -168,7 +166,7 @@
       });
     });
 
-    // زر عرض الخريطة لتحديد الموقع يدويًا - يظهر الخريطة مباشرة بدون تأخير
+    // زر عرض الخريطة لتحديد الموقع يدويًا
     mapBtn.addEventListener("click", () => {
       mapDiv.style.display = "block";
       sendFromMapBtn.style.display = "inline-block";
@@ -185,29 +183,28 @@
           attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        if (typeof L.Control.Geocoder !== "undefined") {
-          const geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false
-          }).addTo(map);
+        const geocoder = L.Control.geocoder({
+          defaultMarkGeocode: false,
+          placeholder: "ابحث عن موقعك هنا..."
+        }).addTo(map);
 
-          geocoder.on('markgeocode', function(e) {
-            const bbox = e.geocode.bbox;
-            const poly = L.polygon([
-              bbox.getSouthEast(),
-              bbox.getNorthEast(),
-              bbox.getNorthWest(),
-              bbox.getSouthWest()
-            ]).addTo(map);
-            map.fitBounds(poly.getBounds());
-            if (marker) {
-              marker.setLatLng(e.geocode.center);
-            } else {
-              marker = L.marker(e.geocode.center).addTo(map);
-            }
-            selectedLatLng = e.geocode.center;
-            status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
-          });
-        }
+        geocoder.on('markgeocode', function(e) {
+          const bbox = e.geocode.bbox;
+          const poly = L.polygon([
+            bbox.getSouthEast(),
+            bbox.getNorthEast(),
+            bbox.getNorthWest(),
+            bbox.getSouthWest()
+          ]).addTo(map);
+          map.fitBounds(poly.getBounds());
+          if (marker) {
+            marker.setLatLng(e.geocode.center);
+          } else {
+            marker = L.marker(e.geocode.center).addTo(map);
+          }
+          selectedLatLng = e.geocode.center;
+          status.textContent = `تم اختيار الموقع عند: ${selectedLatLng.lat.toFixed(6)}, ${selectedLatLng.lng.toFixed(6)}`;
+        });
 
         map.on("click", function(e) {
           if (marker) {
