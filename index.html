@@ -54,6 +54,9 @@
     #manualBtn {
       background: #673ab7;
     }
+    #searchBtn {
+      background: #444;
+    }
     .status {
       margin-top: 10px;
       font-size: 14px;
@@ -74,11 +77,6 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <!-- Geocoder (مربع البحث) -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
-  />
 </head>
 
 <body>
@@ -94,20 +92,23 @@
     <label>ملاحظات إضافية</label>
     <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
 
-    <!-- زر تحديد مباشر -->
-    <button id="gpsBtn">📍 استخدم موقعي الحالي</button>
+    <!-- زر GPS -->
+    <button id="gpsBtn">📍 استخدم موقعي الحالي (إرسال مباشر)</button>
 
-    <!-- زر تحديد يدوي -->
+    <!-- زر خريطة -->
     <button id="manualBtn">🗺️ حدد موقع التوصيل على الخريطة</button>
+
+    <!-- البحث اليدوي -->
+    <input id="searchInput" placeholder="اكتب اسم المنطقة أو الحي" style="display:none;margin-top:10px;">
+    <button id="searchBtn" style="display:none;">🔍 بحث عن الموقع</button>
 
     <div id="map"></div>
 
-    <button id="sendBtn">إرسال الطلب</button>
+    <button id="sendBtn">إرسال الطلب يدويًا</button>
 
     <div class="status" id="status"></div>
   </div>
 
-  <!-- صوت -->
   <audio id="successSound">
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg" />
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.mp3" type="audio/mpeg" />
@@ -115,8 +116,6 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Geocoder JS -->
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
   <script>
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
@@ -125,6 +124,8 @@
     const status = document.getElementById("status");
     const successSound = document.getElementById("successSound");
     const mapDiv = document.getElementById("map");
+    const searchInput = document.getElementById("searchInput");
+    const searchBtn = document.getElementById("searchBtn");
 
     let map = null;
     let marker = null;
@@ -151,21 +152,66 @@
       );
     }
 
-    // زر GPS مباشر
+    function sendOrder(lat, lon) {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+
+      if (!name || !phone) {
+        status.textContent = "⚠️ يرجى إدخال الاسم ورقم الهاتف";
+        return;
+      }
+
+      const data = { name, phone, notes, lat, lon };
+      const newHash = getDataHash(data);
+      const lastHash = localStorage.getItem("lastOrderHash");
+
+      if (newHash === lastHash) {
+        alert("⚠️ هذا الطلب تم إرساله مسبقًا، غيّر أي معلومة ثم أعد الإرسال");
+        return;
+      }
+
+      const mapLink = `https://maps.google.com/?q=${lat},${lon}`;
+
+      const text =
+        `📦 <b>طلب جديد - متجر جولي كيك</b>\n\n` +
+        `👤 <b>الاسم:</b> ${name}\n` +
+        `📞 <b>الهاتف:</b> ${phone}\n` +
+        `📝 <b>ملاحظات:</b> ${notes || "لا توجد"}\n\n` +
+        `📍 <b>موقع التوصيل:</b>\n` +
+        `<a href="${mapLink}">اضغط هنا لفتح الموقع على الخريطة</a>`;
+
+      sendToTelegram(text)
+        .then(() => {
+          localStorage.setItem("lastOrderHash", newHash);
+          status.innerHTML =
+            "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح</span>";
+          successSound.play();
+
+          const confirmMsg = encodeURIComponent(
+            "✅ تم استلام طلبك بنجاح من متجر جولي كيك"
+          );
+          window.open(`https://wa.me/${phone}?text=${confirmMsg}`, "_blank");
+        })
+        .catch(() => {
+          status.textContent = "❌ حدث خطأ أثناء الإرسال";
+        });
+    }
+
+    // زر GPS - إرسال مباشر
     document.getElementById("gpsBtn").addEventListener("click", () => {
       if (!navigator.geolocation) {
         status.textContent = "❌ المتصفح لا يدعم تحديد الموقع";
         return;
       }
 
-      status.textContent = "📡 جارٍ تحديد موقعك الحالي...";
+      status.textContent = "📡 جارٍ تحديد موقعك وإرسال الطلب...";
 
       navigator.geolocation.getCurrentPosition(
         pos => {
-          selectedLat = pos.coords.latitude.toFixed(6);
-          selectedLon = pos.coords.longitude.toFixed(6);
-
-          status.textContent = "✅ تم تحديد موقعك الحالي بنجاح";
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+          sendOrder(lat, lon);
         },
         () => {
           status.textContent = "❌ تعذر الحصول على الموقع";
@@ -173,39 +219,19 @@
       );
     });
 
-    // زر الخريطة اليدوية
+    // زر الخريطة
     document.getElementById("manualBtn").addEventListener("click", () => {
       mapDiv.style.display = "block";
+      searchInput.style.display = "block";
+      searchBtn.style.display = "block";
 
       if (!map) {
-        map = L.map("map").setView([35.1318, 36.7532], 12); // حماة
+        map = L.map("map").setView([35.1318, 36.7532], 12);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 18
         }).addTo(map);
 
-        // مربع البحث
-        const geocoder = L.Control.geocoder({
-          defaultMarkGeocode: false
-        }).addTo(map);
-
-        geocoder.on("markgeocode", e => {
-          const center = e.geocode.center;
-          map.setView(center, 15);
-
-          selectedLat = center.lat.toFixed(6);
-          selectedLon = center.lng.toFixed(6);
-
-          if (marker) {
-            marker.setLatLng(center);
-          } else {
-            marker = L.marker(center).addTo(map);
-          }
-
-          status.textContent = "📍 تم تحديد الموقع من البحث";
-        });
-
-        // اختيار بالضغط
         map.on("click", e => {
           selectedLat = e.latlng.lat.toFixed(6);
           selectedLon = e.latlng.lng.toFixed(6);
@@ -223,58 +249,48 @@
       }
     });
 
-    // زر الإرسال
+    // زر البحث
+    searchBtn.addEventListener("click", () => {
+      const query = searchInput.value.trim();
+      if (!query) return;
+
+      status.textContent = "🔍 جارٍ البحث عن الموقع...";
+
+      fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+      )
+        .then(res => res.json())
+        .then(data => {
+          if (!data.length) {
+            status.textContent = "❌ لم يتم العثور على الموقع";
+            return;
+          }
+
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+
+          selectedLat = lat.toFixed(6);
+          selectedLon = lon.toFixed(6);
+
+          map.setView([lat, lon], 15);
+
+          if (marker) {
+            marker.setLatLng([lat, lon]);
+          } else {
+            marker = L.marker([lat, lon]).addTo(map);
+          }
+
+          status.textContent = "📍 تم تحديد الموقع من البحث";
+        });
+    });
+
+    // زر الإرسال اليدوي
     document.getElementById("sendBtn").addEventListener("click", () => {
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const notes = document.getElementById("notes").value.trim();
-
-      if (!name || !phone) {
-        status.textContent = "⚠️ يرجى إدخال الاسم ورقم الهاتف";
-        return;
-      }
-
       if (!selectedLat || !selectedLon) {
         status.textContent = "⚠️ يرجى تحديد موقع التوصيل أولاً";
         return;
       }
-
-      const data = { name, phone, notes, selectedLat, selectedLon };
-      const newHash = getDataHash(data);
-      const lastHash = localStorage.getItem("lastOrderHash");
-
-      if (newHash === lastHash) {
-        alert("⚠️ هذا الطلب تم إرساله مسبقًا، غيّر أي معلومة ثم أعد الإرسال");
-        return;
-      }
-
-      const mapLink = `https://maps.google.com/?q=${selectedLat},${selectedLon}`;
-
-      const text =
-        `📦 <b>طلب جديد - متجر جولي كيك</b>\n\n` +
-        `👤 <b>الاسم:</b> ${name}\n` +
-        `📞 <b>الهاتف:</b> ${phone}\n` +
-        `📝 <b>ملاحظات:</b> ${notes || "لا توجد"}\n\n` +
-        `📍 <b>موقع التوصيل:</b>\n` +
-        `<a href="${mapLink}">اضغط هنا لفتح الموقع على الخريطة</a>`;
-
-      sendToTelegram(text)
-        .then(() => {
-          localStorage.setItem("lastOrderHash", newHash);
-
-          status.innerHTML =
-            "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح</span>";
-
-          successSound.play();
-
-          const confirmMsg = encodeURIComponent(
-            "✅ تم استلام طلبك بنجاح من متجر جولي كيك"
-          );
-          window.open(`https://wa.me/${phone}?text=${confirmMsg}`, "_blank");
-        })
-        .catch(() => {
-          status.textContent = "❌ حدث خطأ أثناء الإرسال";
-        });
+      sendOrder(selectedLat, selectedLon);
     });
   </script>
 </body>
