@@ -72,7 +72,6 @@
     }
   </style>
 
-  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -89,16 +88,15 @@
     <label>رقم هاتفك</label>
     <input id="phone" placeholder="مثال: 093XXXXXXX" autocomplete="off" />
 
+    <label>علامة مميزة بجانب المنزل</label>
+    <input id="landmark" placeholder="مثال: مقابل الجامع، باب أزرق، جنب الصيدلية" autocomplete="off" />
+
     <label>ملاحظات إضافية</label>
     <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
 
-    <!-- زر GPS -->
     <button id="gpsBtn">📍 استخدم موقعي الحالي (إرسال مباشر)</button>
-
-    <!-- زر خريطة -->
     <button id="manualBtn">🗺️ حدد موقع التوصيل على الخريطة</button>
 
-    <!-- البحث اليدوي -->
     <input id="searchInput" placeholder="اكتب اسم المنطقة أو الحي" style="display:none;margin-top:10px;">
     <button id="searchBtn" style="display:none;">🔍 بحث عن الموقع</button>
 
@@ -114,11 +112,10 @@
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.mp3" type="audio/mpeg" />
   </audio>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
+    const token = "ضع_توكن_البوت_هنا";
     const chatIds = ["939054281", "6748885574"];
 
     const status = document.getElementById("status");
@@ -156,13 +153,14 @@
       const name = document.getElementById("name").value.trim();
       const phone = document.getElementById("phone").value.trim();
       const notes = document.getElementById("notes").value.trim();
+      const landmark = document.getElementById("landmark").value.trim();
 
       if (!name || !phone) {
         status.textContent = "⚠️ يرجى إدخال الاسم ورقم الهاتف";
         return;
       }
 
-      const data = { name, phone, notes, lat, lon };
+      const data = { name, phone, notes, landmark, lat, lon };
       const newHash = getDataHash(data);
       const lastHash = localStorage.getItem("lastOrderHash");
 
@@ -177,8 +175,9 @@
         `📦 <b>طلب جديد - متجر جولي كيك</b>\n\n` +
         `👤 <b>الاسم:</b> ${name}\n` +
         `📞 <b>الهاتف:</b> ${phone}\n` +
+        `📍 <b>علامة مميزة:</b> ${landmark || "غير مذكورة"}\n` +
         `📝 <b>ملاحظات:</b> ${notes || "لا توجد"}\n\n` +
-        `📍 <b>موقع التوصيل:</b>\n` +
+        `🗺️ <b>موقع التوصيل:</b>\n` +
         `<a href="${mapLink}">اضغط هنا لفتح الموقع على الخريطة</a>`;
 
       sendToTelegram(text)
@@ -198,7 +197,6 @@
         });
     }
 
-    // زر GPS - إرسال مباشر
     document.getElementById("gpsBtn").addEventListener("click", () => {
       if (!navigator.geolocation) {
         status.textContent = "❌ المتصفح لا يدعم تحديد الموقع";
@@ -219,7 +217,6 @@
       );
     });
 
-    // زر الخريطة
     document.getElementById("manualBtn").addEventListener("click", () => {
       mapDiv.style.display = "block";
       searchInput.style.display = "block";
@@ -249,7 +246,6 @@
       }
     });
 
-    // زر البحث
     searchBtn.addEventListener("click", () => {
       const query = searchInput.value.trim();
       if (!query) return;
@@ -284,7 +280,6 @@
         });
     });
 
-    // زر الإرسال اليدوي
     document.getElementById("sendBtn").addEventListener("click", () => {
       if (!selectedLat || !selectedLon) {
         status.textContent = "⚠️ يرجى تحديد موقع التوصيل أولاً";
