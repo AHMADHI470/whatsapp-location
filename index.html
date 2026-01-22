@@ -43,13 +43,16 @@
     button {
       width: 100%;
       padding: 12px;
-      margin-top: 14px;
+      margin-top: 10px;
       background: #0088cc;
       color: #fff;
       border: none;
       border-radius: 10px;
       font-size: 16px;
       cursor: pointer;
+    }
+    #manualBtn {
+      background: #673ab7;
     }
     .status {
       margin-top: 10px;
@@ -66,10 +69,15 @@
     }
   </style>
 
-  <!-- Leaflet (خريطة مجانية) -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <!-- Geocoder (مربع البحث) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
   />
 </head>
 
@@ -86,7 +94,12 @@
     <label>ملاحظات إضافية</label>
     <textarea id="notes" placeholder="اكتب ملاحظتك هنا"></textarea>
 
-    <button id="showMapBtn">📍 حدد موقع التوصيل على الخريطة</button>
+    <!-- زر تحديد مباشر -->
+    <button id="gpsBtn">📍 استخدم موقعي الحالي</button>
+
+    <!-- زر تحديد يدوي -->
+    <button id="manualBtn">🗺️ حدد موقع التوصيل على الخريطة</button>
+
     <div id="map"></div>
 
     <button id="sendBtn">إرسال الطلب</button>
@@ -94,7 +107,7 @@
     <div class="status" id="status"></div>
   </div>
 
-  <!-- صوت نجاح -->
+  <!-- صوت -->
   <audio id="successSound">
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg" />
     <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.mp3" type="audio/mpeg" />
@@ -102,6 +115,8 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Geocoder JS -->
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
   <script>
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
@@ -116,7 +131,6 @@
     let selectedLat = null;
     let selectedLon = null;
 
-    // منع الإرسال المتكرر
     function getDataHash(data) {
       return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     }
@@ -137,8 +151,30 @@
       );
     }
 
-    // زر إظهار الخريطة
-    document.getElementById("showMapBtn").addEventListener("click", () => {
+    // زر GPS مباشر
+    document.getElementById("gpsBtn").addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        status.textContent = "❌ المتصفح لا يدعم تحديد الموقع";
+        return;
+      }
+
+      status.textContent = "📡 جارٍ تحديد موقعك الحالي...";
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          selectedLat = pos.coords.latitude.toFixed(6);
+          selectedLon = pos.coords.longitude.toFixed(6);
+
+          status.textContent = "✅ تم تحديد موقعك الحالي بنجاح";
+        },
+        () => {
+          status.textContent = "❌ تعذر الحصول على الموقع";
+        }
+      );
+    });
+
+    // زر الخريطة اليدوية
+    document.getElementById("manualBtn").addEventListener("click", () => {
       mapDiv.style.display = "block";
 
       if (!map) {
@@ -148,6 +184,28 @@
           maxZoom: 18
         }).addTo(map);
 
+        // مربع البحث
+        const geocoder = L.Control.geocoder({
+          defaultMarkGeocode: false
+        }).addTo(map);
+
+        geocoder.on("markgeocode", e => {
+          const center = e.geocode.center;
+          map.setView(center, 15);
+
+          selectedLat = center.lat.toFixed(6);
+          selectedLon = center.lng.toFixed(6);
+
+          if (marker) {
+            marker.setLatLng(center);
+          } else {
+            marker = L.marker(center).addTo(map);
+          }
+
+          status.textContent = "📍 تم تحديد الموقع من البحث";
+        });
+
+        // اختيار بالضغط
         map.on("click", e => {
           selectedLat = e.latlng.lat.toFixed(6);
           selectedLon = e.latlng.lng.toFixed(6);
@@ -158,14 +216,14 @@
             marker = L.marker(e.latlng).addTo(map);
           }
 
-          status.textContent = "📍 تم تحديد موقع التوصيل بنجاح";
+          status.textContent = "📍 تم تحديد الموقع من الخريطة";
         });
       } else {
         map.invalidateSize();
       }
     });
 
-    // زر إرسال الطلب
+    // زر الإرسال
     document.getElementById("sendBtn").addEventListener("click", () => {
       const name = document.getElementById("name").value.trim();
       const phone = document.getElementById("phone").value.trim();
@@ -177,7 +235,7 @@
       }
 
       if (!selectedLat || !selectedLon) {
-        status.textContent = "⚠️ يرجى تحديد موقع التوصيل من الخريطة";
+        status.textContent = "⚠️ يرجى تحديد موقع التوصيل أولاً";
         return;
       }
 
@@ -186,7 +244,7 @@
       const lastHash = localStorage.getItem("lastOrderHash");
 
       if (newHash === lastHash) {
-        alert("⚠️ هذا الطلب تم إرساله مسبقًا، يرجى تغيير أي معلومة ثم إعادة الإرسال");
+        alert("⚠️ هذا الطلب تم إرساله مسبقًا، غيّر أي معلومة ثم أعد الإرسال");
         return;
       }
 
