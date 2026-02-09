@@ -2,37 +2,39 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>🍰 توصيل جولي كيك</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     body {
       font-family: system-ui, sans-serif;
-      background: linear-gradient(135deg, #fff3f6, #fce4ec);
-      padding: 16px;
+      background: linear-gradient(135deg, #fff0f4, #fde4ec);
+      padding: 12px;
     }
 
     .card {
       max-width: 560px;
       margin: auto;
       background: #fff;
-      padding: 18px;
+      padding: 16px;
       border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
     }
 
     h2 {
       text-align: center;
       color: #d81b60;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .subtitle {
       text-align: center;
       font-size: 14px;
-      color: #777;
+      color: #666;
       margin-bottom: 14px;
     }
 
@@ -44,20 +46,20 @@
 
     input, textarea {
       width: 100%;
-      padding: 11px;
+      padding: 12px;
       border-radius: 10px;
       border: 1px solid #ddd;
       margin-top: 6px;
-      font-size: 15px;
+      font-size: 16px;
     }
 
     textarea {
-      resize: vertical;
       min-height: 70px;
+      resize: vertical;
     }
 
     #map {
-      height: 320px;
+      height: 360px;
       border-radius: 14px;
       margin-top: 14px;
       border: 2px solid #f8bbd0;
@@ -65,27 +67,24 @@
 
     .hint {
       font-size: 13px;
-      color: #666;
+      color: #555;
       margin-top: 6px;
     }
 
     button {
       width: 100%;
-      margin-top: 14px;
-      padding: 14px;
+      margin-top: 16px;
+      padding: 16px;
       border-radius: 14px;
       border: none;
-      font-size: 16px;
+      font-size: 17px;
       cursor: pointer;
-    }
-
-    #sendBtn {
       background: #d81b60;
       color: #fff;
       font-weight: bold;
     }
 
-    #sendBtn:disabled {
+    button:disabled {
       opacity: .6;
       cursor: not-allowed;
     }
@@ -96,29 +95,44 @@
       min-height: 36px;
       white-space: pre-line;
     }
+
+    /* تحسينات موبايل */
+    @media (max-width: 600px) {
+      #map {
+        height: 380px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div class="card">
     <h2>🍰 توصيل جولي كيك</h2>
-    <div class="subtitle">حدد موقعك بدقة لنوصلك الطعم الحلو 😋</div>
+    <div class="subtitle">
+      حدّدنا موقعك تلقائيًا… عدّل إذا لزم 😄
+    </div>
 
     <label>👤 الاسم</label>
-    <input id="name" placeholder="مثال: آية محمد">
+    <input id="name" placeholder="مثال: محمد أحمد" enterkeyhint="next">
 
     <label>📞 رقم الهاتف</label>
-    <input id="phone" placeholder="093XXXXXXX">
+    <input id="phone" placeholder="093XXXXXXX"
+           inputmode="tel" enterkeyhint="next">
 
-    <label>📍 علامة مميزة بجانب المنزل (إجباري)</label>
-    <input id="landmark" placeholder="باب أزرق، مقابل الجامع، بجانب الصيدلية">
+    <label>📍 علامة مميزة (إجباري)</label>
+    <input id="landmark"
+           placeholder="باب أزرق، مقابل الجامع، جنب الصيدلية"
+           enterkeyhint="next">
 
     <label>📝 ملاحظات إضافية</label>
-    <textarea id="notes" placeholder="وقت مناسب، ملاحظات للسائق..."></textarea>
+    <textarea id="notes"
+              placeholder="ملاحظات للسائق، وقت مناسب..."
+              enterkeyhint="done"></textarea>
 
-    <label>🗺️ اختر موقع التوصيل من الخريطة (إجباري)</label>
+    <label>🗺️ موقع التوصيل</label>
     <div class="hint">
-      ⚠️ يجب اختيار موقع داخل حي أو شارع سكني
+      • الموقع يتحدد تلقائيًا<br>
+      • إذا غير دقيق، اسحب المؤشر لمكانك
     </div>
 
     <div id="map"></div>
@@ -131,8 +145,9 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    /* ===== إعدادات Telegram (كما هي حاليًا) ===== */
     const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281", "6748885574"];
+    const chatIds = ["939054281"];
 
     const status = document.getElementById("status");
     const sendBtn = document.getElementById("sendBtn");
@@ -141,21 +156,20 @@
     let selectedLat = null;
     let selectedLon = null;
 
-    // ====== تحقق أن الموقع سكني ======
+    /* ===== تحقق أن المكان سكني ===== */
     async function isHumanLocation(lat, lon) {
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-          { headers: { "User-Agent": "JulieCakeDelivery/1.0" } }
+          { headers: { "User-Agent": "JulieCakeWeb/1.0" } }
         );
-
         const data = await res.json();
-        const addr = data.address || {};
+        const a = data.address || {};
 
         const hasStreet =
-          addr.road || addr.residential || addr.neighbourhood;
+          a.road || a.residential || a.neighbourhood;
         const hasArea =
-          addr.suburb || addr.city || addr.town || addr.village;
+          a.suburb || a.city || a.town || a.village;
 
         return hasStreet && hasArea;
       } catch {
@@ -163,51 +177,85 @@
       }
     }
 
-    // ====== تهيئة الخريطة ======
+    /* ===== تهيئة الخريطة ===== */
     map = L.map("map").setView([35.1318, 36.7532], 13);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18
     }).addTo(map);
 
-    // GPS فقط لتحريك الخريطة
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        if (pos.coords.accuracy < 150) {
-          map.setView(
-            [pos.coords.latitude, pos.coords.longitude],
-            15
-          );
-        }
-      });
+    /* ===== تثبيت المؤشر ===== */
+    function setMarker(lat, lon, msg) {
+      const ll = [lat, lon];
+      map.setView(ll, 16);
+
+      if (!marker) {
+        marker = L.marker(ll, { draggable: true }).addTo(map);
+
+        marker.on("dragend", async e => {
+          const p = e.target.getLatLng();
+          status.textContent = "🔍 جارٍ التحقق من الموقع...";
+
+          const ok = await isHumanLocation(p.lat, p.lng);
+          if (!ok) {
+            status.textContent =
+              "❌ هذا المكان غير سكني، اسحب المؤشر لمكان صحيح";
+            return;
+          }
+
+          selectedLat = p.lat.toFixed(6);
+          selectedLon = p.lng.toFixed(6);
+          status.textContent = "✅ تم تعديل الموقع بنجاح";
+        });
+      } else {
+        marker.setLatLng(ll);
+      }
+
+      selectedLat = lat.toFixed(6);
+      selectedLon = lon.toFixed(6);
+      status.textContent = msg;
     }
 
-    map.on("click", async e => {
-      status.textContent = "🔍 جارٍ التحقق من الموقع...";
-      const lat = e.latlng.lat.toFixed(6);
-      const lon = e.latlng.lng.toFixed(6);
+    /* ===== تحديد الموقع تلقائيًا ===== */
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
 
-      const valid = await isHumanLocation(lat, lon);
+          if (pos.coords.accuracy > 120) {
+            setMarker(
+              lat,
+              lon,
+              "⚠️ دقة الموقع ضعيفة، يرجى سحب المؤشر للتأكيد"
+            );
+            return;
+          }
 
-      if (!valid) {
-        status.textContent =
-          "❌ هذا الموقع غير سكني. يرجى اختيار موقع داخل حي أو شارع";
-        return;
-      }
+          const valid = await isHumanLocation(lat, lon);
+          if (!valid) {
+            setMarker(
+              lat,
+              lon,
+              "⚠️ الموقع التلقائي غير منطقي، عدّله يدويًا"
+            );
+            return;
+          }
 
-      selectedLat = lat;
-      selectedLon = lon;
+          setMarker(
+            lat,
+            lon,
+            "✅ تم تحديد موقعك تلقائيًا، تأكد منه"
+          );
+        },
+        () => {
+          status.textContent =
+            "⚠️ لم نتمكن من تحديد الموقع تلقائيًا";
+        }
+      );
+    }
 
-      if (marker) {
-        marker.setLatLng(e.latlng);
-      } else {
-        marker = L.marker(e.latlng).addTo(map);
-      }
-
-      status.textContent = "✅ تم اختيار موقع التوصيل بنجاح";
-    });
-
-    // ====== إرسال الطلب ======
+    /* ===== إرسال الطلب ===== */
     function sendToTelegram(text) {
       return Promise.all(
         chatIds.map(id =>
@@ -236,19 +284,21 @@
       }
 
       if (!selectedLat || !selectedLon) {
-        status.textContent = "⚠️ يرجى تحديد الموقع من الخريطة";
+        status.textContent = "⚠️ يرجى تأكيد موقع التوصيل";
         return;
       }
 
       if (!landmark) {
-        status.textContent = "⚠️ العلامة المميزة إلزامية لضمان التوصيل";
+        status.textContent =
+          "⚠️ العلامة المميزة إلزامية لضمان التوصيل";
         return;
       }
 
       sendBtn.disabled = true;
       status.textContent = "📦 جارٍ إرسال الطلب...";
 
-      const mapLink = `https://maps.google.com/?q=${selectedLat},${selectedLon}`;
+      const mapLink =
+        `https://maps.google.com/?q=${selectedLat},${selectedLon}`;
 
       const text =
 `🍰 <b>طلب توصيل جديد - جولي كيك</b>
