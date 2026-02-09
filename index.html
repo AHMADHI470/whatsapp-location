@@ -1,326 +1,229 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>🍰 توصيل جولي كيك</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>🍰 توصيل جولي كيك</title>
 
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: linear-gradient(135deg, #fff0f4, #fde4ec);
-      padding: 12px;
-    }
-
-    .card {
-      max-width: 560px;
-      margin: auto;
-      background: #fff;
-      padding: 16px;
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.12);
-    }
-
-    h2 {
-      text-align: center;
-      color: #d81b60;
-      margin-bottom: 4px;
-    }
-
-    .subtitle {
-      text-align: center;
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 14px;
-    }
-
-    label {
-      font-weight: 600;
-      margin-top: 12px;
-      display: block;
-    }
-
-    input, textarea {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      margin-top: 6px;
-      font-size: 16px;
-    }
-
-    textarea {
-      min-height: 70px;
-      resize: vertical;
-    }
-
-    #map {
-      height: 360px;
-      border-radius: 14px;
-      margin-top: 14px;
-      border: 2px solid #f8bbd0;
-    }
-
-    .hint {
-      font-size: 13px;
-      color: #555;
-      margin-top: 6px;
-    }
-
-    button {
-      width: 100%;
-      margin-top: 16px;
-      padding: 16px;
-      border-radius: 14px;
-      border: none;
-      font-size: 17px;
-      cursor: pointer;
-      background: #d81b60;
-      color: #fff;
-      font-weight: bold;
-    }
-
-    button:disabled {
-      opacity: .6;
-      cursor: not-allowed;
-    }
-
-    .status {
-      margin-top: 12px;
-      font-size: 14px;
-      min-height: 36px;
-      white-space: pre-line;
-    }
-
-    /* تحسينات موبايل */
-    @media (max-width: 600px) {
-      #map {
-        height: 380px;
-      }
-    }
-  </style>
+<style>
+body{
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg,#fff0f4,#fde4ec);
+  padding:12px;
+}
+.card{
+  max-width:560px;
+  margin:auto;
+  background:#fff;
+  padding:16px;
+  border-radius:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,.12);
+}
+h2{
+  text-align:center;
+  color:#d81b60;
+  margin-bottom:4px;
+}
+.subtitle{
+  text-align:center;
+  font-size:14px;
+  color:#666;
+  margin-bottom:14px;
+}
+label{
+  font-weight:600;
+  margin-top:12px;
+  display:block;
+}
+input,textarea{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  margin-top:6px;
+  font-size:16px;
+}
+textarea{
+  min-height:70px;
+}
+#map{
+  height:380px;
+  border-radius:14px;
+  margin-top:14px;
+  border:2px solid #f8bbd0;
+}
+.hint{
+  font-size:13px;
+  color:#555;
+  margin-top:6px;
+}
+button{
+  width:100%;
+  margin-top:16px;
+  padding:16px;
+  border-radius:14px;
+  border:none;
+  font-size:17px;
+  background:#d81b60;
+  color:#fff;
+  font-weight:bold;
+}
+button:disabled{
+  opacity:.6;
+}
+.status{
+  margin-top:12px;
+  font-size:14px;
+  min-height:36px;
+  white-space:pre-line;
+}
+</style>
 </head>
 
 <body>
-  <div class="card">
-    <h2>🍰 توصيل جولي كيك</h2>
-    <div class="subtitle">
-      حدّدنا موقعك تلقائيًا… عدّل إذا لزم 😄
-    </div>
+<div class="card">
+  <h2>🍰 توصيل جولي كيك</h2>
+  <div class="subtitle">حددنا موقعك تلقائيًا… عدّل إذا لزم 😄</div>
 
-    <label>👤 الاسم</label>
-    <input id="name" placeholder="مثال: محمد أحمد" enterkeyhint="next">
+  <label>👤 الاسم</label>
+  <input id="name" placeholder="مثال: محمد أحمد">
 
-    <label>📞 رقم الهاتف</label>
-    <input id="phone" placeholder="093XXXXXXX"
-           inputmode="tel" enterkeyhint="next">
+  <label>📞 رقم الهاتف</label>
+  <input id="phone" placeholder="093XXXXXXX" inputmode="tel">
 
-    <label>📍 علامة مميزة (إجباري)</label>
-    <input id="landmark"
-           placeholder="باب أزرق، مقابل الجامع، جنب الصيدلية"
-           enterkeyhint="next">
+  <label>📍 علامة مميزة (إجباري)</label>
+  <input id="landmark" placeholder="باب أزرق، مقابل الجامع، جنب الصيدلية">
 
-    <label>📝 ملاحظات إضافية</label>
-    <textarea id="notes"
-              placeholder="ملاحظات للسائق، وقت مناسب..."
-              enterkeyhint="done"></textarea>
+  <label>📝 ملاحظات</label>
+  <textarea id="notes" placeholder="ملاحظات للسائق"></textarea>
 
-    <label>🗺️ موقع التوصيل</label>
-    <div class="hint">
-      • الموقع يتحدد تلقائيًا<br>
-      • إذا غير دقيق، اسحب المؤشر لمكانك
-    </div>
-
-    <div id="map"></div>
-
-    <button id="sendBtn">🚚 إرسال طلب التوصيل</button>
-
-    <div class="status" id="status"></div>
+  <label>🗺️ موقع التوصيل</label>
+  <div class="hint">
+    • الموقع يتحدد تلقائيًا<br>
+    • إذا غير دقيق اسحب المؤشر
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div id="map"></div>
 
-  <script>
-    /* ===== إعدادات Telegram (كما هي حاليًا) ===== */
-    const token = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
-    const chatIds = ["939054281"];
+  <button id="sendBtn">🚚 إرسال طلب التوصيل</button>
+  <div class="status" id="status"></div>
+</div>
 
-    const status = document.getElementById("status");
-    const sendBtn = document.getElementById("sendBtn");
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    let map, marker;
-    let selectedLat = null;
-    let selectedLon = null;
+<script>
+/* ===== Telegram Config ===== */
+const TOKEN = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
+const CHAT_IDS = ["939054281","6748885574"];
 
-    /* ===== تحقق أن المكان سكني ===== */
-    async function isHumanLocation(lat, lon) {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-          { headers: { "User-Agent": "JulieCakeWeb/1.0" } }
-        );
-        const data = await res.json();
-        const a = data.address || {};
+const status = document.getElementById("status");
+const sendBtn = document.getElementById("sendBtn");
 
-        const hasStreet =
-          a.road || a.residential || a.neighbourhood;
-        const hasArea =
-          a.suburb || a.city || a.town || a.village;
+let map, marker;
+let selectedLat=null, selectedLon=null;
 
-        return hasStreet && hasArea;
-      } catch {
-        return false;
+/* ===== فلترة موقع سكني ===== */
+async function isValidHumanLocation(lat,lon){
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`,
+      {headers:{"User-Agent":"JulieCake/1.0"}}
+    );
+    const d = await res.json();
+    const a = d.address || {};
+    return (a.road||a.residential||a.neighbourhood) &&
+           (a.city||a.town||a.village||a.suburb);
+  }catch{
+    return false;
+  }
+}
+
+/* ===== خريطة ===== */
+map = L.map("map").setView([35.1318,36.7532],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(map);
+
+function setMarker(lat,lon,msg){
+  const ll=[lat,lon];
+  map.setView(ll,16);
+  if(!marker){
+    marker = L.marker(ll,{draggable:true}).addTo(map);
+    marker.on("dragend",async e=>{
+      const p=e.target.getLatLng();
+      status.textContent="🔍 التحقق من الموقع...";
+      if(await isValidHumanLocation(p.lat,p.lng)){
+        selectedLat=p.lat.toFixed(6);
+        selectedLon=p.lng.toFixed(6);
+        status.textContent="✅ تم تعديل الموقع";
+      }else{
+        status.textContent="❌ مكان غير سكني، عدّل المؤشر";
       }
-    }
+    });
+  }else marker.setLatLng(ll);
 
-    /* ===== تهيئة الخريطة ===== */
-    map = L.map("map").setView([35.1318, 36.7532], 13);
+  selectedLat=lat.toFixed(6);
+  selectedLon=lon.toFixed(6);
+  status.textContent=msg;
+}
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18
-    }).addTo(map);
+/* ===== تحديد تلقائي ===== */
+navigator.geolocation?.getCurrentPosition(async pos=>{
+  const {latitude,longitude,accuracy}=pos.coords;
+  if(accuracy>120){
+    setMarker(latitude,longitude,"⚠️ دقة ضعيفة، عدّل يدويًا");
+    return;
+  }
+  if(await isValidHumanLocation(latitude,longitude)){
+    setMarker(latitude,longitude,"✅ تم تحديد موقعك تلقائيًا");
+  }else{
+    setMarker(latitude,longitude,"⚠️ موقع غير منطقي، عدّله");
+  }
+},()=>{
+  status.textContent="⚠️ لم نتمكن من تحديد الموقع تلقائيًا";
+});
 
-    /* ===== تثبيت المؤشر ===== */
-    function setMarker(lat, lon, msg) {
-      const ll = [lat, lon];
-      map.setView(ll, 16);
+/* ===== إرسال ===== */
+function sendToTelegram(text){
+  return Promise.all(CHAT_IDS.map(id=>
+    fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({chat_id:id,text,parse_mode:"HTML"})
+    })
+  ));
+}
 
-      if (!marker) {
-        marker = L.marker(ll, { draggable: true }).addTo(map);
+sendBtn.onclick=()=>{
+  const name=nameInput.value.trim();
+  const phone=phoneInput.value.trim();
+  const landmark=landmarkInput.value.trim();
+  const notes=notesInput.value.trim();
 
-        marker.on("dragend", async e => {
-          const p = e.target.getLatLng();
-          status.textContent = "🔍 جارٍ التحقق من الموقع...";
+  if(!name||!phone) return status.textContent="⚠️ الاسم والهاتف مطلوبان";
+  if(!landmark) return status.textContent="⚠️ العلامة المميزة إلزامية";
+  if(!selectedLat) return status.textContent="⚠️ أكد موقعك أولًا";
 
-          const ok = await isHumanLocation(p.lat, p.lng);
-          if (!ok) {
-            status.textContent =
-              "❌ هذا المكان غير سكني، اسحب المؤشر لمكان صحيح";
-            return;
-          }
+  sendBtn.disabled=true;
+  status.textContent="📦 جارٍ الإرسال...";
 
-          selectedLat = p.lat.toFixed(6);
-          selectedLon = p.lng.toFixed(6);
-          status.textContent = "✅ تم تعديل الموقع بنجاح";
-        });
-      } else {
-        marker.setLatLng(ll);
-      }
-
-      selectedLat = lat.toFixed(6);
-      selectedLon = lon.toFixed(6);
-      status.textContent = msg;
-    }
-
-    /* ===== تحديد الموقع تلقائيًا ===== */
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async pos => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-
-          if (pos.coords.accuracy > 120) {
-            setMarker(
-              lat,
-              lon,
-              "⚠️ دقة الموقع ضعيفة، يرجى سحب المؤشر للتأكيد"
-            );
-            return;
-          }
-
-          const valid = await isHumanLocation(lat, lon);
-          if (!valid) {
-            setMarker(
-              lat,
-              lon,
-              "⚠️ الموقع التلقائي غير منطقي، عدّله يدويًا"
-            );
-            return;
-          }
-
-          setMarker(
-            lat,
-            lon,
-            "✅ تم تحديد موقعك تلقائيًا، تأكد منه"
-          );
-        },
-        () => {
-          status.textContent =
-            "⚠️ لم نتمكن من تحديد الموقع تلقائيًا";
-        }
-      );
-    }
-
-    /* ===== إرسال الطلب ===== */
-    function sendToTelegram(text) {
-      return Promise.all(
-        chatIds.map(id =>
-          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: id,
-              text,
-              parse_mode: "HTML"
-            })
-          })
-        )
-      );
-    }
-
-    sendBtn.addEventListener("click", () => {
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const landmark = document.getElementById("landmark").value.trim();
-      const notes = document.getElementById("notes").value.trim();
-
-      if (!name || !phone) {
-        status.textContent = "⚠️ يرجى إدخال الاسم ورقم الهاتف";
-        return;
-      }
-
-      if (!selectedLat || !selectedLon) {
-        status.textContent = "⚠️ يرجى تأكيد موقع التوصيل";
-        return;
-      }
-
-      if (!landmark) {
-        status.textContent =
-          "⚠️ العلامة المميزة إلزامية لضمان التوصيل";
-        return;
-      }
-
-      sendBtn.disabled = true;
-      status.textContent = "📦 جارٍ إرسال الطلب...";
-
-      const mapLink =
-        `https://maps.google.com/?q=${selectedLat},${selectedLon}`;
-
-      const text =
-`🍰 <b>طلب توصيل جديد - جولي كيك</b>
+  const mapLink=`https://maps.google.com/?q=${selectedLat},${selectedLon}`;
+  const text=`🍰 <b>طلب توصيل - جولي كيك</b>
 
 👤 <b>الاسم:</b> ${name}
 📞 <b>الهاتف:</b> ${phone}
-📍 <b>علامة مميزة:</b> ${landmark}
-📝 <b>ملاحظات:</b> ${notes || "لا توجد"}
+📍 <b>علامة:</b> ${landmark}
+📝 <b>ملاحظات:</b> ${notes||"لا يوجد"}
 
-🗺️ <a href="${mapLink}">فتح الموقع على الخريطة</a>
-`;
+🗺️ <a href="${mapLink}">فتح الموقع</a>`;
 
-      sendToTelegram(text)
-        .then(() => {
-          status.innerHTML =
-            "<span style='color:green;font-weight:bold;'>✅ تم إرسال الطلب بنجاح، سيتم التواصل معك قريبًا</span>";
-        })
-        .catch(() => {
-          sendBtn.disabled = false;
-          status.textContent = "❌ حدث خطأ أثناء الإرسال";
-        });
+  sendToTelegram(text)
+    .then(()=>status.innerHTML="<b style='color:green'>✅ تم إرسال الطلب بنجاح</b>")
+    .catch(()=>{
+      sendBtn.disabled=false;
+      status.textContent="❌ فشل الإرسال";
     });
-  </script>
+};
+</script>
 </body>
 </html>
