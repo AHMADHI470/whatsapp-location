@@ -45,9 +45,7 @@ input,textarea{
   margin-top:6px;
   font-size:16px;
 }
-textarea{
-  min-height:70px;
-}
+textarea{ min-height:70px; }
 #map{
   height:380px;
   border-radius:14px;
@@ -70,9 +68,7 @@ button{
   color:#fff;
   font-weight:bold;
 }
-button:disabled{
-  opacity:.6;
-}
+button:disabled{ opacity:.6; }
 .status{
   margin-top:12px;
   font-size:14px;
@@ -85,7 +81,7 @@ button:disabled{
 <body>
 <div class="card">
   <h2>🍰 توصيل جولي كيك</h2>
-  <div class="subtitle">حددنا موقعك تلقائيًا… عدّل إذا لزم 😄</div>
+  <div class="subtitle">تم تحديد موقعك تلقائيًا — عدّل إذا لزم</div>
 
   <label>👤 الاسم</label>
   <input id="name" placeholder="مثال: محمد أحمد">
@@ -94,7 +90,7 @@ button:disabled{
   <input id="phone" placeholder="093XXXXXXX" inputmode="tel">
 
   <label>📍 علامة مميزة (إجباري)</label>
-  <input id="landmark" placeholder="باب أزرق، مقابل الجامع، جنب الصيدلية">
+  <input id="landmark" placeholder="باب أزرق، مقابل الجامع">
 
   <label>📝 ملاحظات</label>
   <textarea id="notes" placeholder="ملاحظات للسائق"></textarea>
@@ -114,22 +110,24 @@ button:disabled{
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* ===== Telegram Config ===== */
+/* ===== Telegram ===== */
 const TOKEN = "8448514696:AAGzvoVb0Rgqd8cY9Y_WfKj_7xDMTa3CT-M";
 const CHAT_IDS = ["939054281","6748885574"];
 
+/* ===== عناصر ===== */
 const status = document.getElementById("status");
 const sendBtn = document.getElementById("sendBtn");
 
 let map, marker;
-let selectedLat=null, selectedLon=null;
+let selectedLat = null;
+let selectedLon = null;
 
-/* ===== فلترة موقع سكني ===== */
+/* ===== تحقق موقع سكني ===== */
 async function isValidHumanLocation(lat,lon){
   try{
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`,
-      {headers:{"User-Agent":"JulieCake/1.0"}}
+      { headers:{ "User-Agent":"JulieCake/1.0" } }
     );
     const d = await res.json();
     const a = d.address || {};
@@ -147,83 +145,110 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).a
 function setMarker(lat,lon,msg){
   const ll=[lat,lon];
   map.setView(ll,16);
+
   if(!marker){
     marker = L.marker(ll,{draggable:true}).addTo(map);
-    marker.on("dragend",async e=>{
-      const p=e.target.getLatLng();
+    marker.on("dragend", async e=>{
+      const p = e.target.getLatLng();
       status.textContent="🔍 التحقق من الموقع...";
       if(await isValidHumanLocation(p.lat,p.lng)){
-        selectedLat=p.lat.toFixed(6);
-        selectedLon=p.lng.toFixed(6);
+        selectedLat = p.lat.toFixed(6);
+        selectedLon = p.lng.toFixed(6);
         status.textContent="✅ تم تعديل الموقع";
       }else{
-        status.textContent="❌ مكان غير سكني، عدّل المؤشر";
+        status.textContent="❌ هذا المكان غير سكني";
       }
     });
-  }else marker.setLatLng(ll);
+  }else{
+    marker.setLatLng(ll);
+  }
 
-  selectedLat=lat.toFixed(6);
-  selectedLon=lon.toFixed(6);
-  status.textContent=msg;
+  selectedLat = lat.toFixed(6);
+  selectedLon = lon.toFixed(6);
+  status.textContent = msg;
 }
 
 /* ===== تحديد تلقائي ===== */
-navigator.geolocation?.getCurrentPosition(async pos=>{
-  const {latitude,longitude,accuracy}=pos.coords;
-  if(accuracy>120){
-    setMarker(latitude,longitude,"⚠️ دقة ضعيفة، عدّل يدويًا");
-    return;
-  }
-  if(await isValidHumanLocation(latitude,longitude)){
-    setMarker(latitude,longitude,"✅ تم تحديد موقعك تلقائيًا");
-  }else{
-    setMarker(latitude,longitude,"⚠️ موقع غير منطقي، عدّله");
-  }
-},()=>{
-  status.textContent="⚠️ لم نتمكن من تحديد الموقع تلقائيًا";
-});
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude,longitude,accuracy} = pos.coords;
 
-/* ===== إرسال ===== */
-function sendToTelegram(text){
-  return Promise.all(CHAT_IDS.map(id=>
-    fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({chat_id:id,text,parse_mode:"HTML"})
-    })
-  ));
+    if(accuracy > 120){
+      setMarker(latitude,longitude,"⚠️ دقة ضعيفة، عدّل الموقع يدويًا");
+      return;
+    }
+
+    if(await isValidHumanLocation(latitude,longitude)){
+      setMarker(latitude,longitude,"✅ تم تحديد موقعك تلقائيًا");
+    }else{
+      setMarker(latitude,longitude,"⚠️ موقع غير منطقي، عدّله");
+    }
+  },()=>{
+    status.textContent="⚠️ فشل تحديد الموقع تلقائيًا";
+  });
 }
 
-sendBtn.onclick=()=>{
-  const name=nameInput.value.trim();
-  const phone=phoneInput.value.trim();
-  const landmark=landmarkInput.value.trim();
-  const notes=notesInput.value.trim();
+/* ===== إرسال تلغرام ===== */
+function sendToTelegram(text){
+  return Promise.all(
+    CHAT_IDS.map(id =>
+      fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          chat_id:id,
+          text:text,
+          parse_mode:"HTML"
+        })
+      })
+    )
+  );
+}
 
-  if(!name||!phone) return status.textContent="⚠️ الاسم والهاتف مطلوبان";
-  if(!landmark) return status.textContent="⚠️ العلامة المميزة إلزامية";
-  if(!selectedLat) return status.textContent="⚠️ أكد موقعك أولًا";
+/* ===== زر الإرسال ===== */
+sendBtn.addEventListener("click",()=>{
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const landmark = document.getElementById("landmark").value.trim();
+  const notes = document.getElementById("notes").value.trim();
 
-  sendBtn.disabled=true;
-  status.textContent="📦 جارٍ الإرسال...";
+  if(!name || !phone){
+    status.textContent="⚠️ الاسم ورقم الهاتف مطلوبان";
+    return;
+  }
+  if(!landmark){
+    status.textContent="⚠️ العلامة المميزة إلزامية";
+    return;
+  }
+  if(!selectedLat || !selectedLon){
+    status.textContent="⚠️ يرجى تحديد الموقع";
+    return;
+  }
 
-  const mapLink=`https://maps.google.com/?q=${selectedLat},${selectedLon}`;
-  const text=`🍰 <b>طلب توصيل - جولي كيك</b>
+  sendBtn.disabled = true;
+  status.textContent="📦 جارٍ إرسال الطلب...";
+
+  const mapLink = `https://maps.google.com/?q=${selectedLat},${selectedLon}`;
+
+  const text =
+`🍰 <b>طلب توصيل - جولي كيك</b>
 
 👤 <b>الاسم:</b> ${name}
 📞 <b>الهاتف:</b> ${phone}
 📍 <b>علامة:</b> ${landmark}
-📝 <b>ملاحظات:</b> ${notes||"لا يوجد"}
+📝 <b>ملاحظات:</b> ${notes || "لا يوجد"}
 
-🗺️ <a href="${mapLink}">فتح الموقع</a>`;
+🗺️ <a href="${mapLink}">فتح الموقع على الخريطة</a>`;
 
   sendToTelegram(text)
-    .then(()=>status.innerHTML="<b style='color:green'>✅ تم إرسال الطلب بنجاح</b>")
+    .then(()=>{
+      status.innerHTML="<b style='color:green'>✅ تم إرسال الطلب بنجاح</b>";
+    })
     .catch(()=>{
       sendBtn.disabled=false;
-      status.textContent="❌ فشل الإرسال";
+      status.textContent="❌ فشل الإرسال إلى تلغرام";
     });
-};
+});
 </script>
 </body>
 </html>
